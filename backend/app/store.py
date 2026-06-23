@@ -3,11 +3,9 @@ Vector store wrapper. Tenant-aware from day one: every business gets its own
 Chroma collection, so one customer's documents can never leak into another's
 answers. This is the cheap multi-tenancy that saves you a rewrite at customer #2.
 
-Default embeddings are a local SentenceTransformer model (free, no API key,
-downloads once on first run). To upgrade to Voyage AI (Anthropic's recommended
-embedding partner) for production-grade retrieval, replace _embed_fn with
-Voyage's embedding function and set VOYAGE_API_KEY. The rest of the code is
-unchanged.
+Embeddings come from Voyage AI's API (Anthropic's recommended embedding
+partner) — no local model, so no PyTorch and a much smaller memory footprint
+than the SentenceTransformer alternative.
 """
 import chromadb
 from chromadb.utils import embedding_functions
@@ -17,8 +15,9 @@ from .config import get_settings
 _settings = get_settings()
 _client = chromadb.PersistentClient(path=_settings.chroma_dir)
 
-_embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name=_settings.embed_model
+_embed_fn = embedding_functions.VoyageAIEmbeddingFunction(
+    api_key=_settings.voyage_api_key,
+    model_name=_settings.voyage_model,
 )
 
 

@@ -12,8 +12,9 @@ class Settings:
     anthropic_api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
     claude_model: str = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 
-    # Embeddings (local, free; swap to Voyage for production quality — see store.py)
-    embed_model: str = os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2")
+    # Embeddings (Voyage AI — no local model, low memory footprint)
+    voyage_api_key: str = os.environ.get("VOYAGE_API_KEY", "")
+    voyage_model: str = os.environ.get("VOYAGE_MODEL", "voyage-3.5-lite")
 
     # Vector store
     chroma_dir: str = os.environ.get("CHROMA_DIR", "./chroma_data")
