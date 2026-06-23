@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GroundedBot — test widget</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#6b7280; --line:#e5e7eb; --me:#2563eb; --bot:#f3f4f6; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; color: var(--ink);
+         display: flex; justify-content: center; background: #fafafa; }
+  .wrap { width: 100%; max-width: 560px; height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 14px 16px; border-bottom: 1px solid var(--line); background: #fff; }
+  header h1 { font-size: 15px; margin: 0; }
+  header p { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+  #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { padding: 10px 12px; border-radius: 12px; max-width: 85%; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
+  .me { background: var(--me); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .bot { background: var(--bot); align-self: flex-start; border-bottom-left-radius: 3px; }
+  .sources { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+  .ok { background: #dcfce7; color: #166534; }
+  .no { background: #fee2e2; color: #991b1b; }
+  form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); background: #fff; }
+  input[type=text] { flex: 1; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+  button { padding: 10px 16px; border: 0; border-radius: 10px; background: var(--me); color: #fff; font-size: 14px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .cfg { font-size: 12px; color: var(--muted); padding: 8px 16px; border-bottom: 1px solid var(--line); background: #fff; }
+  .cfg input { width: 110px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>GroundedBot — test widget</h1>
+      <p>Functional tester for the API. The real client-facing widget gets styled and embedded on the client's own site later.</p>
+    </header>
+    <div class="cfg">
+      API <input id="api" type="text" value="http://localhost:8000" />
+      &nbsp; tenant <input id="tenant" type="text" value="demo" style="width:80px" />
+    </div>
+    <div id="log"></div>
+    <form id="f">
+      <input id="q" type="text" placeholder="Ask something about the business…" autocomplete="off" />
+      <button id="send" type="submit">Send</button>
+    </form>
+  </div>
+
+<script>
+  const log = document.getElementById('log');
+  const f = document.getElementById('f');
+  const q = document.getElementById('q');
+  const send = document.getElementById('send');
+
+  function bubble(text, who, extraHTML) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + who;
+    d.textContent = text;
+    if (extraHTML) { const e = document.createElement('div'); e.innerHTML = extraHTML; d.appendChild(e); }
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    return d;
+  }
+
+  f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const question = q.value.trim();
+    if (!question) return;
+    const api = document.getElementById('api').value.replace(/\/$/, '');
+    const tenant = document.getElementById('tenant').value.trim() || 'demo';
+    bubble(question, 'me');
+    q.value = ''; send.disabled = true;
+    const thinking = bubble('…', 'bot');
+    try {
+      const r = await fetch(api + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: tenant, question })
+      });
+      const data = await r.json();
+      thinking.remove();
+      const badge = data.grounded
+        ? '<span class="badge ok">grounded</span>'
+        : '<span class="badge no">no match</span>';
+      let srcs = '';
+      if (data.sources && data.sources.length) {
+        srcs = '<div class="sources">Sources: ' +
+          data.sources.map(s => `[${s.n}] ${s.title || s.source}`).join('  ·  ') + '</div>';
+      }
+      bubble(data.answer || '(no answer)', 'bot', badge + srcs);
+    } catch (err) {
+      thinking.remove();
+      bubble('Error: ' + err.message + ' (is the API running and CORS open?)', 'bot');
+    } finally {
+      send.disabled = false; q.focus();
+    }
+  });
+</script>
+</body>
+</html>

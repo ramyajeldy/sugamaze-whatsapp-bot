@@ -1,0 +1,47 @@
+"""
+WhatsApp Business (Meta Cloud API) glue: verify the webhook, pull the
+customer's text out of an incoming payload, and send the bot's reply back.
+"""
+import httpx
+
+from .config import get_settings
+
+_settings = get_settings()
+GRAPH_URL = "https://graph.facebook.com/v21.0"
+
+
+def verify(mode: str, token: str, challenge: str):
+    if mode == "subscribe" and token == _settings.whatsapp_verify_token:
+        return challenge
+    return None
+
+
+def extract_message(payload: dict):
+    """Return (from_number, text) for the first text message in the webhook
+    payload, or None if there isn't one (e.g. delivery-status callbacks)."""
+    try:
+        entry = payload["entry"][0]
+        change = entry["changes"][0]["value"]
+        messages = change.get("messages")
+        if not messages:
+            return None
+        msg = messages[0]
+        if msg.get("type") != "text":
+            return None
+        return msg["from"], msg["text"]["body"]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
+def send_message(to: str, text: str):
+    url = f"{GRAPH_URL}/{_settings.whatsapp_phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {_settings.whatsapp_token}"}
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {"body": text},
+    }
+    r = httpx.post(url, json=payload, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json()
