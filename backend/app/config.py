@@ -36,6 +36,9 @@ class Settings:
     # Single-shop deployment: every WhatsApp message maps to this tenant.
     default_tenant_id: str = os.environ.get("DEFAULT_TENANT_ID", "sugamaze")
 
+    # Idle check-in: nudge a customer who's gone quiet mid-conversation.
+    idle_checkin_seconds: float = float(os.environ.get("IDLE_CHECKIN_SECONDS", "45"))
+
     # Escalation notifications (alert shop when bot can't answer)
     escalation_email: str = os.environ.get("ESCALATION_EMAIL", "info@sugamaze.ca")
     escalation_whatsapp_to: str = os.environ.get("ESCALATION_WHATSAPP_TO", "14056557878")

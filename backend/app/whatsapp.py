@@ -51,6 +51,26 @@ def extract_message(payload: dict):
         return None
 
 
+def extract_button_reply(payload: dict):
+    """Return (from_number, button_id) if the inbound message is a button
+    click from an interactive message, else None."""
+    try:
+        entry = payload["entry"][0]
+        change = entry["changes"][0]["value"]
+        messages = change.get("messages")
+        if not messages:
+            return None
+        msg = messages[0]
+        if msg.get("type") != "interactive":
+            return None
+        interactive = msg["interactive"]
+        if interactive.get("type") != "button_reply":
+            return None
+        return msg["from"], interactive["button_reply"]["id"]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
 def send_message(to: str, text: str):
     url = f"{GRAPH_URL}/{_settings.whatsapp_phone_number_id}/messages"
     headers = {"Authorization": f"Bearer {_settings.whatsapp_token}"}
@@ -59,6 +79,30 @@ def send_message(to: str, text: str):
         "to": to,
         "type": "text",
         "text": {"body": text},
+    }
+    r = httpx.post(url, json=payload, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+
+def send_buttons(to: str, body_text: str, buttons: list[tuple[str, str]]):
+    """buttons is a list of (id, title) pairs, max 3 per WhatsApp's limit."""
+    url = f"{GRAPH_URL}/{_settings.whatsapp_phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {_settings.whatsapp_token}"}
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": body_text},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": bid, "title": title}}
+                    for bid, title in buttons
+                ]
+            },
+        },
     }
     r = httpx.post(url, json=payload, headers=headers, timeout=20)
     r.raise_for_status()

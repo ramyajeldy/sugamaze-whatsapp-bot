@@ -15,7 +15,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-from . import autoseed, ingest, rag, store, whatsapp
+from . import autoseed, ingest, rag, state, store, whatsapp
 from .config import get_settings
 from .schemas import ChatRequest, IngestUrlRequest, IngestTextRequest
 
@@ -36,6 +36,27 @@ async def startup_autoseed():
     # Runs in the background so the server starts answering /health immediately
     # even while re-seeding (which can take several minutes under rate limits).
     asyncio.create_task(autoseed.reseed_if_empty(_settings.default_tenant_id))
+
+
+@app.on_event("startup")
+async def startup_idle_checkin_loop():
+    asyncio.create_task(_idle_checkin_loop())
+
+
+async def _idle_checkin_loop():
+    while True:
+        await asyncio.sleep(5)
+        for phone in state.idle_customers(_settings.idle_checkin_seconds):
+            try:
+                whatsapp.send_buttons(
+                    phone,
+                    "Hello, there? Would you like to continue chatting?",
+                    [("idle_yes", "Yes"), ("idle_no", "No")],
+                )
+            except Exception as e:
+                print(f"[idle-checkin] failed to message {phone}: {e}")
+            finally:
+                state.mark_followup_sent(phone)
 
 
 @app.get("/health")
@@ -117,12 +138,27 @@ def whatsapp_verify(request: Request):
 async def whatsapp_incoming(request: Request):
     payload = await request.json()
     whatsapp.extract_status(payload)
+
+    button = whatsapp.extract_button_reply(payload)
+    if button is not None:
+        from_number, button_id = button
+        state.touch(from_number)
+        if button_id == "idle_yes":
+            whatsapp.send_message(from_number, "How may I help you further?")
+        elif button_id == "idle_no":
+            whatsapp.send_message(
+                from_number,
+                "Thank you for contacting Sugamaze. Hope to see you around soon!",
+            )
+        return {"ok": True}
+
     parsed = whatsapp.extract_message(payload)
     if parsed is None:
         # Status callbacks (delivered/read) and non-text messages land here.
         return {"ok": True}
 
     from_number, text = parsed
+    state.touch(from_number)
     result = rag.answer(_settings.default_tenant_id, text, customer_phone=from_number)
     whatsapp.send_message(from_number, result["answer"])
     return {"ok": True}
