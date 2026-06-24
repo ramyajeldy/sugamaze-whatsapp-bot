@@ -147,10 +147,7 @@ async def whatsapp_incoming(request: Request):
             whatsapp.send_message(from_number, "How may I help you further?")
         elif button_id == "idle_no":
             state.end_conversation(from_number)
-            whatsapp.send_message(
-                from_number,
-                "Thank you for contacting Sugamaze. Hope to see you around soon!",
-            )
+            whatsapp.send_message(from_number, rag.CLOSING_LINE)
         return {"ok": True}
 
     parsed = whatsapp.extract_message(payload)
