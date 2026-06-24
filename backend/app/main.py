@@ -96,6 +96,7 @@ def debug_config():
         "smtp_user_set": bool(_settings.smtp_user),
         "last_escalation_attempt": notify.last_attempt,
         "last_escalation_result": notify.last_error,
+        "last_whatsapp_status_callback": whatsapp.last_status,
     }
 
 
@@ -115,6 +116,7 @@ def whatsapp_verify(request: Request):
 @app.post("/webhook/whatsapp")
 async def whatsapp_incoming(request: Request):
     payload = await request.json()
+    whatsapp.extract_status(payload)
     parsed = whatsapp.extract_message(payload)
     if parsed is None:
         # Status callbacks (delivered/read) and non-text messages land here.
