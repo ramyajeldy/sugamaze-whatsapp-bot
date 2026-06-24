@@ -55,3 +55,13 @@ def query(tenant_id, text, top_k):
 def stats(tenant_id):
     col = _collection(tenant_id)
     return {"tenant_id": tenant_id, "chunks": col.count()}
+
+
+def reset_collection(tenant_id):
+    """Delete and recreate the tenant's collection — used before a full
+    re-seed so stale chunks (from old chunk-size settings, edited source
+    pages, etc.) never linger and pollute retrieval."""
+    try:
+        _client.delete_collection(name=f"tenant_{tenant_id}")
+    except Exception:
+        pass  # collection may not exist yet

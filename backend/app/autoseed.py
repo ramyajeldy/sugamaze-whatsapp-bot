@@ -1,8 +1,10 @@
 """
-Self-healing knowledge base: if the tenant's vector store is found empty on
-startup (e.g. a hosting platform's disk didn't persist between deploys), this
-re-ingests the canonical Sugamaze sources automatically in the background so
-the bot recovers without manual intervention.
+Self-healing knowledge base: every startup wipes and rebuilds the tenant's
+vector store from the canonical Sugamaze sources. This runs unconditionally
+(not just when empty) because a *partial* dataset — e.g. from a disk that
+didn't fully persist, or stale chunks from an old chunk-size/embedding
+config — is just as dangerous as an empty one and otherwise never gets
+fixed. Runs in the background so /health responds immediately.
 """
 import asyncio
 import logging
@@ -42,11 +44,8 @@ SECONDS_BETWEEN_REQUESTS = 22
 
 
 async def reseed_if_empty(tenant_id: str):
-    if store.stats(tenant_id)["chunks"] > 0:
-        logger.info(f"[autoseed] tenant '{tenant_id}' already has data, skipping")
-        return
-
-    logger.info(f"[autoseed] tenant '{tenant_id}' is empty — re-seeding in background")
+    logger.info(f"[autoseed] rebuilding tenant '{tenant_id}' from scratch in background")
+    store.reset_collection(tenant_id)
 
     for md_file in sorted(KNOWLEDGE_DIR.glob("*.md")):
         try:
