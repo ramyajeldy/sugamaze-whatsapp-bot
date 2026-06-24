@@ -96,7 +96,7 @@ def debug_config():
         "smtp_user_set": bool(_settings.smtp_user),
         "last_escalation_attempt": notify.last_attempt,
         "last_escalation_result": notify.last_error,
-        "last_whatsapp_status_callback": whatsapp.last_status,
+        "recent_whatsapp_status_callbacks": whatsapp.recent_statuses,
     }
 
 

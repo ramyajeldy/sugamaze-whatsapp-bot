@@ -9,21 +9,21 @@ from .config import get_settings
 _settings = get_settings()
 GRAPH_URL = "https://graph.facebook.com/v21.0"
 
-# Temporary diagnostic — last delivery-status callback Meta sent us (e.g.
+# Temporary diagnostic — recent delivery-status callbacks Meta sent us (e.g.
 # delivered/read/failed for messages we sent), queryable via /debug/config.
-last_status = None
+recent_statuses = []
 
 
 def extract_status(payload: dict):
     """Capture delivery-status callbacks (sent/delivered/read/failed) for
     diagnostics. These arrive separately from inbound customer messages."""
-    global last_status
     try:
         entry = payload["entry"][0]
         change = entry["changes"][0]["value"]
         statuses = change.get("statuses")
         if statuses:
-            last_status = statuses[0]
+            recent_statuses.append(statuses[0])
+            del recent_statuses[:-10]  # keep last 10 only
     except (KeyError, IndexError, TypeError):
         pass
 
