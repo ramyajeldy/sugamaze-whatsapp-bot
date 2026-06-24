@@ -83,6 +83,19 @@ def get_stats(tenant_id: str):
     return store.stats(tenant_id)
 
 
+@app.get("/debug/config")
+def debug_config():
+    # Temporary diagnostic endpoint — no secrets exposed, just presence/value
+    # of non-sensitive settings used by the escalation notification path.
+    return {
+        "escalation_whatsapp_to": _settings.escalation_whatsapp_to,
+        "escalation_email": _settings.escalation_email,
+        "whatsapp_phone_number_id_set": bool(_settings.whatsapp_phone_number_id),
+        "whatsapp_token_set": bool(_settings.whatsapp_token),
+        "smtp_user_set": bool(_settings.smtp_user),
+    }
+
+
 @app.get("/webhook/whatsapp")
 def whatsapp_verify(request: Request):
     params = request.query_params
