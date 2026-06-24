@@ -12,10 +12,14 @@ Usage:
     python run_eval.py https://sugamaze-whatsapp-bot.onrender.com sugamaze
     python run_eval.py http://localhost:8000 sugamaze   # test locally
 """
+import io
 import json
 import sys
 import time
 import pathlib
+
+# Windows console defaults to cp1252, which can't print emoji in bot answers.
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 import httpx
 from anthropic import Anthropic
@@ -37,11 +41,13 @@ You will see:
 - The bot's actual answer
 
 Classify the bot's answer into EXACTLY ONE of these labels:
-- CORRECT: bot's answer matches the expected fact, no fabrication.
-- CORRECT_ESCALATION: bot was expected to escalate/refuse, and it did (e.g. said it doesn't have the info, offered to connect with the team).
-- HALLUCINATION: bot stated a specific fact (price, number, policy, flavor, etc.) that was NOT given to it as an expected fact, when it should have escalated instead. This is the most serious failure.
+- CORRECT: bot's answer matches the expected fact. Extra accurate-sounding
+  detail beyond the expected fact (e.g. listing flavours, sizes) is FINE and
+  still CORRECT — only flag a problem if something is wrong or invented.
+- CORRECT_ESCALATION: bot was expected to escalate/refuse, and it did (e.g. said it doesn't have the info, offered to connect with the team), OR answered with only generic/non-specific info (like "prices vary, call us for a quote") without inventing a specific number/fact.
+- HALLUCINATION: bot was expected to escalate/refuse, but instead invented a SPECIFIC fact (an exact price, a specific number, a specific policy detail, a specific flavor/ingredient claim) that wasn't given to it. Generic deflection ("contact us for details") is NOT hallucination.
 - FALSE_ESCALATION: bot was expected to answer with a known fact, but instead refused/escalated even though the fact was available.
-- WRONG_FACT: bot answered but got the fact wrong (contradicts the expected fact).
+- WRONG_FACT: bot answered but contradicts the expected fact (states something incompatible with it, not just additional detail).
 
 Respond with ONLY the label, nothing else."""
 
