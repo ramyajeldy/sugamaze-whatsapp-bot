@@ -80,6 +80,18 @@ def answer(tenant_id, question, customer_phone: str = None):
             "sources": []
         }
 
+    # Always give the exact address for any location-related phrasing —
+    # too important to leave to retrieval/generation variance.
+    location_keywords = {"located", "location", "address"}
+    where_phrases = {"where are you", "where is sugamaze", "where is your store",
+                      "where is your shop", "where can i find you", "find your store"}
+    if any(k in q_lower for k in location_keywords) or any(p in q_lower for p in where_phrases):
+        return {
+            "answer": "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍",
+            "grounded": True,
+            "sources": []
+        }
+
     # Trigger menu if "menu" appears anywhere in the question
     if "menu" in q_lower:
         menu_text = """✨ *Sugamaze Menu* ✨
