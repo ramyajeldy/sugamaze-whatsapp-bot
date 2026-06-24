@@ -12,6 +12,11 @@ from . import whatsapp
 
 _settings = get_settings()
 
+# Temporary in-memory diagnostic — last error from a notification attempt,
+# queryable via /debug/config since we can't view platform logs directly.
+last_error = None
+last_attempt = None
+
 
 def notify_escalation(customer_phone: str, question: str):
     """Alert the shop that a customer asked something the bot couldn't answer."""
@@ -64,6 +69,8 @@ Please reach out to the customer to help them. You can reply to this customer vi
 
 def _send_whatsapp(customer_phone: str, question: str, timestamp: str):
     """Send WhatsApp alert to the shop owner."""
+    global last_error, last_attempt
+    last_attempt = f"to={_settings.escalation_whatsapp_to} at={timestamp}"
     try:
         msg = (
             f"⚠️ Bot escalation\n\n"
@@ -72,6 +79,8 @@ def _send_whatsapp(customer_phone: str, question: str, timestamp: str):
             f"Time: {timestamp}\n\n"
             f"Customer needs help — please reply on WhatsApp."
         )
-        whatsapp.send_message(_settings.escalation_whatsapp_to, msg)
+        result = whatsapp.send_message(_settings.escalation_whatsapp_to, msg)
+        last_error = f"SUCCESS: {result}"
     except Exception as e:
+        last_error = f"{type(e).__name__}: {e}"
         print(f"[ERROR] WhatsApp notification failed: {type(e).__name__}: {e}")

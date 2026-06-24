@@ -87,12 +87,15 @@ def get_stats(tenant_id: str):
 def debug_config():
     # Temporary diagnostic endpoint — no secrets exposed, just presence/value
     # of non-sensitive settings used by the escalation notification path.
+    from . import notify
     return {
         "escalation_whatsapp_to": _settings.escalation_whatsapp_to,
         "escalation_email": _settings.escalation_email,
         "whatsapp_phone_number_id_set": bool(_settings.whatsapp_phone_number_id),
         "whatsapp_token_set": bool(_settings.whatsapp_token),
         "smtp_user_set": bool(_settings.smtp_user),
+        "last_escalation_attempt": notify.last_attempt,
+        "last_escalation_result": notify.last_error,
     }
 
 
