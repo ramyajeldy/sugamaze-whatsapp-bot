@@ -5,6 +5,7 @@ so answers can be cited back to where they came from.
 """
 import hashlib
 import io
+import re
 
 import trafilatura
 from pypdf import PdfReader
@@ -13,6 +14,21 @@ from .config import get_settings
 from . import store
 
 _settings = get_settings()
+
+# Boilerplate that repeats verbatim across nearly every page of the Sugamaze
+# site (an accessibility-widget footer). It carries no FAQ-relevant info and,
+# left in, floods the vector index with near-duplicate noise that crowds out
+# genuinely useful chunks. Its position in the extracted text varies by page
+# (trafilatura sometimes puts it first), so we excise just the block itself
+# rather than truncating — truncating could silently delete real content.
+_BOILERPLATE_PATTERN = re.compile(
+    r"Accessibility Commitment for Sugamaze Inc.*?Last updated:\s*\w+ \d{1,2},\s*\d{4}",
+    re.DOTALL,
+)
+
+
+def _strip_boilerplate(text):
+    return _BOILERPLATE_PATTERN.sub("", text)
 
 
 def _chunk_text(text, size, overlap):
@@ -32,7 +48,11 @@ def _store_doc(tenant_id, source, title, text):
     chunks = _chunk_text(text, _settings.chunk_size, _settings.chunk_overlap)
     ids, docs, metas = [], [], []
     for i, ch in enumerate(chunks):
-        uid = hashlib.sha1(f"{source}-{i}-{ch[:40]}".encode()).hexdigest()
+        # Hash on content alone (not source+index) so identical boilerplate
+        # that repeats across many pages (footers, accessibility notices,
+        # etc.) collapses into a single chunk instead of flooding the index
+        # with duplicates that crowd out genuinely unique content.
+        uid = hashlib.sha1(ch.encode()).hexdigest()
         ids.append(uid)
         docs.append(ch)
         metas.append({"source": source, "title": title, "chunk": i})
@@ -48,6 +68,7 @@ def ingest_url(tenant_id, url):
     text = trafilatura.extract(downloaded, include_comments=False, include_tables=True)
     if not text:
         raise ValueError(f"No extractable text found at {url}")
+    text = _strip_boilerplate(text)
     return _store_doc(tenant_id, source=url, title=url, text=text)
 
 
