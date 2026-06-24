@@ -28,3 +28,11 @@ def idle_customers(idle_seconds: float):
 
 def mark_followup_sent(phone: str):
     _followup_sent.add(phone)
+
+
+def end_conversation(phone: str):
+    """Call when the customer explicitly ends the chat (e.g. taps 'No' on
+    the idle check-in) — stops the idle loop from ever nudging them again
+    until they send a fresh message of their own."""
+    _last_message_at.pop(phone, None)
+    _followup_sent.discard(phone)

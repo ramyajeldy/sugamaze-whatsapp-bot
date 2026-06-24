@@ -142,10 +142,11 @@ async def whatsapp_incoming(request: Request):
     button = whatsapp.extract_button_reply(payload)
     if button is not None:
         from_number, button_id = button
-        state.touch(from_number)
         if button_id == "idle_yes":
+            state.touch(from_number)
             whatsapp.send_message(from_number, "How may I help you further?")
         elif button_id == "idle_no":
+            state.end_conversation(from_number)
             whatsapp.send_message(
                 from_number,
                 "Thank you for contacting Sugamaze. Hope to see you around soon!",
