@@ -9,11 +9,13 @@ Phase 2 (scheduling, feedback, order capture + summaries) plugs in as new
 routes + tool-use on top of this same core. Not built yet — kept out on purpose
 so Phase 1 stays demoable.
 """
+import asyncio
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-from . import ingest, rag, store, whatsapp
+from . import autoseed, ingest, rag, store, whatsapp
 from .config import get_settings
 from .schemas import ChatRequest, IngestUrlRequest, IngestTextRequest
 
@@ -27,6 +29,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_autoseed():
+    # Runs in the background so the server starts answering /health immediately
+    # even while re-seeding (which can take several minutes under rate limits).
+    asyncio.create_task(autoseed.reseed_if_empty(_settings.default_tenant_id))
 
 
 @app.get("/health")
