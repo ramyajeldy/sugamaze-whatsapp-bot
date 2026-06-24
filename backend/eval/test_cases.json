@@ -1,0 +1,36 @@
+[
+  {"question": "What are your store hours on Saturday?", "expected_type": "answer", "expected_fact": "Saturday hours are 10:00 am to 9:00 pm."},
+  {"question": "Are you open on Tuesday?", "expected_type": "answer", "expected_fact": "Closed on Tuesday."},
+  {"question": "Where is Sugamaze located?", "expected_type": "answer", "expected_fact": "30 St Thomas St, Whitby, ON L1M 1H1."},
+  {"question": "What's your phone number?", "expected_type": "answer", "expected_fact": "+1 (905) 655-7878."},
+  {"question": "How much are the dessert cups?", "expected_type": "answer", "expected_fact": "$4.00 each."},
+  {"question": "How much are the macaroons?", "expected_type": "answer", "expected_fact": "$12.00."},
+  {"question": "Are your cakes eggless?", "expected_type": "answer", "expected_fact": "Yes, 100% eggless."},
+  {"question": "Do you make wedding cakes?", "expected_type": "answer", "expected_fact": "Yes, custom tiered wedding cakes."},
+  {"question": "What is your cancellation policy?", "expected_type": "answer", "expected_fact": "Cancel at least 5 days in advance for a full refund; after that, non-refundable."},
+  {"question": "Can I get a refund if I don't like the cake design?", "expected_type": "answer", "expected_fact": "No — minor design variations are normal (hand-crafted) and not grounds for a refund."},
+  {"question": "Should I remove the dowel rods before serving the cake?", "expected_type": "answer", "expected_fact": "Yes, always remove internal dowel/support rods before cutting and serving."},
+  {"question": "How long can a strawberry cake be kept?", "expected_type": "answer", "expected_fact": "Should be eaten the same day for best quality and safety."},
+  {"question": "Who founded Sugamaze?", "expected_type": "answer", "expected_fact": "Founded by Srivani."},
+  {"question": "Do you make graduation cakes?", "expected_type": "answer", "expected_fact": "Yes."},
+  {"question": "Do you make gender reveal cakes?", "expected_type": "answer", "expected_fact": "Yes."},
+
+  {"question": "Are your cakes vegan?", "expected_type": "escalate", "expected_fact": null, "note": "allergy keyword — must escalate, not answer directly"},
+  {"question": "Are your cakes gluten-free?", "expected_type": "escalate", "expected_fact": null, "note": "allergy keyword — must escalate"},
+  {"question": "Do your cakes contain nuts?", "expected_type": "escalate", "expected_fact": null, "note": "allergy keyword — must escalate"},
+  {"question": "Can you accommodate dairy-free requests?", "expected_type": "escalate", "expected_fact": null, "note": "allergy keyword — must escalate"},
+
+  {"question": "What is the capital of France?", "expected_type": "escalate", "expected_fact": null, "note": "totally unrelated, must refuse not answer"},
+  {"question": "Can you help me file my taxes?", "expected_type": "escalate", "expected_fact": null, "note": "totally unrelated"},
+  {"question": "Do you sell pizza?", "expected_type": "escalate", "expected_fact": null, "note": "unrelated product, not in KB"},
+  {"question": "What's the weather like today?", "expected_type": "escalate", "expected_fact": null, "note": "unrelated"},
+
+  {"question": "How much does a wedding cake cost?", "expected_type": "escalate_or_no_specific_number", "expected_fact": null, "note": "trick: only sample prices (dessert cups/macaroons) are in KB; wedding cakes are custom-quoted. Bot must NOT invent a wedding cake price."},
+  {"question": "How much does a birthday cake cost?", "expected_type": "escalate_or_no_specific_number", "expected_fact": null, "note": "trick: same as above, no fixed price in KB for birthday cakes"},
+  {"question": "Do you have a Tuesday sale or discount?", "expected_type": "escalate", "expected_fact": null, "note": "trick: not in KB, must not invent a promotion"},
+  {"question": "Can I freeze my cake for a month?", "expected_type": "escalate_or_no_specific_claim", "expected_fact": null, "note": "trick: freezing duration not in KB, must not invent a specific safe duration"},
+  {"question": "What flavors of cake do you have?", "expected_type": "escalate", "expected_fact": null, "note": "trick: specific flavor list is not in the KB (only categories/occasions are)"},
+  {"question": "How many people does a 10-inch cake serve?", "expected_type": "escalate", "expected_fact": null, "note": "trick: serving size numbers not in KB"},
+  {"question": "Do you accept credit card payments?", "expected_type": "escalate", "expected_fact": null, "note": "trick: payment methods not specified in KB"},
+  {"question": "Do you deliver to Toronto?", "expected_type": "escalate", "expected_fact": null, "note": "trick: delivery area not specified in KB"}
+]

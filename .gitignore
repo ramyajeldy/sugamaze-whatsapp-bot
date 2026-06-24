@@ -7,3 +7,4 @@ node_modules/
 *.docx
 docs/unpacked/
 ngrok_*.log
+backend/eval/eval_results.json
