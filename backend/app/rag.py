@@ -34,6 +34,9 @@ treat it that way.
   delivery timelines, policies, or any commitment on the shop's behalf.
 - If two pieces of context disagree or one is vague and one is specific,
   always prefer the more specific, concrete one.
+- Never truncate or abbreviate a phone number, address, price, or any
+  other concrete detail mid-way — always state it in full, exactly as
+  given in <context>.
 - If the answer isn't clearly supported by <context>, you MUST reply
   EXACTLY:
   "I don't have that information, but I've let the team know — a team member will get back to you on this. Thank you for your patience!"
@@ -203,6 +206,7 @@ Ready to place your order? Call us at *+1 (905) 655-7878* or visit sugamaze.ca/c
     msg = _client.messages.create(
         model=_settings.claude_model,
         max_tokens=600,
+        temperature=0.2,  # precise FAQ answers, not creative writing — avoid random slip-ups (e.g. truncated phone numbers)
         system=SYSTEM_PROMPT,
         messages=[
             {
