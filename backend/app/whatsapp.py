@@ -85,6 +85,34 @@ def send_message(to: str, text: str):
     return r.json()
 
 
+def send_template(to: str, template_name: str, params: list[str], language="en_US"):
+    """Send an approved message template — required for business-initiated
+    messages to a recipient outside the 24-hour customer-service window
+    (e.g. escalation alerts to a shop owner who hasn't recently messaged
+    the bot). Free-form text (send_message) gets rejected with error 131047
+    in that case; templates bypass that restriction entirely."""
+    url = f"{GRAPH_URL}/{_settings.whatsapp_phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {_settings.whatsapp_token}"}
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": language},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [{"type": "text", "text": p} for p in params],
+                }
+            ],
+        },
+    }
+    r = httpx.post(url, json=payload, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+
 def send_buttons(to: str, body_text: str, buttons: list[tuple[str, str]]):
     """buttons is a list of (id, title) pairs, max 3 per WhatsApp's limit."""
     url = f"{GRAPH_URL}/{_settings.whatsapp_phone_number_id}/messages"

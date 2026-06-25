@@ -68,9 +68,27 @@ Please reach out to the customer to help them. You can reply to this customer vi
 
 
 def _send_whatsapp(customer_phone: str, question: str, timestamp: str):
-    """Send WhatsApp alert to the shop owner."""
+    """Send WhatsApp alert to the shop owner.
+
+    Tries the approved 'escalation_alert_v2' template first — templates
+    bypass the 24-hour customer-service window, so they work even if the
+    shop owner hasn't recently messaged the bot. Falls back to free-form
+    text (only works inside the 24h window) if the template isn't
+    approved yet or fails for any reason.
+    """
     global last_error, last_attempt
     last_attempt = f"to={_settings.escalation_whatsapp_to} at={timestamp}"
+    try:
+        result = whatsapp.send_template(
+            _settings.escalation_whatsapp_to,
+            "escalation_alert_v2",
+            [f"+{customer_phone}", question],
+        )
+        last_error = f"SUCCESS (template): {result}"
+        return
+    except Exception as e:
+        print(f"[WARN] Template send failed, falling back to free text: {e}")
+
     try:
         msg = (
             f"⚠️ Bot escalation\n\n"
@@ -80,7 +98,7 @@ def _send_whatsapp(customer_phone: str, question: str, timestamp: str):
             f"Customer needs help — please reply on WhatsApp."
         )
         result = whatsapp.send_message(_settings.escalation_whatsapp_to, msg)
-        last_error = f"SUCCESS: {result}"
+        last_error = f"SUCCESS (fallback text): {result}"
     except Exception as e:
         last_error = f"{type(e).__name__}: {e}"
         print(f"[ERROR] WhatsApp notification failed: {type(e).__name__}: {e}")
