@@ -174,6 +174,7 @@ async def whatsapp_incoming(request: Request):
         from_number, row_id = list_reply
         state.touch(from_number)
         if row_id == "opt_order":
+            notify.notify_escalation(from_number, "Customer wants to place a custom order.")
             whatsapp.send_message(from_number, rag.ORDER_TEXT)
         elif row_id == "opt_menu":
             whatsapp.send_message(from_number, rag.MENU_TEXT)
