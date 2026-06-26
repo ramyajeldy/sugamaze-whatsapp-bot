@@ -132,6 +132,26 @@ def answer(tenant_id, question, customer_phone: str = None):
             "sources": []
         }
 
+    # Order intent: collect the details the shop needs instead of trying to
+    # quote/confirm anything ourselves — only the team can do that.
+    order_phrases = {
+        "i want to place an order", "i want to order", "place an order",
+        "i'd like to order", "i would like to order", "place order",
+        "i want to order a cake", "how do i order", "how can i order",
+        "i want to place order",
+    }
+    if any(p in q_lower for p in order_phrases):
+        return {
+            "answer": (
+                "Please leave your name, order details, date required, and "
+                "upload any design ideas, and my team will get back to you "
+                "with pricing and order confirmation during our business "
+                "hours. Thank you for choosing Sugamaze 💕"
+            ),
+            "grounded": True,
+            "sources": []
+        }
+
     # Escalate any allergy-related questions to shop owner (safety critical)
     allergy_keywords = {"allerg", "vegan", "gluten", "dairy", "nuts", "nut-free", "egg-free", "lactose", "celiac", "intolerant", "sensitivity"}
     if any(keyword in q_lower for keyword in allergy_keywords):
@@ -151,6 +171,25 @@ def answer(tenant_id, question, customer_phone: str = None):
     if any(k in q_lower for k in location_keywords) or any(p in q_lower for p in where_phrases):
         return {
             "answer": "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍",
+            "grounded": True,
+            "sources": []
+        }
+
+    # Detect order-placing intent and collect structured details instead of
+    # guessing at pricing/availability — those require a human to confirm.
+    order_phrases = {
+        "place an order", "place order", "want to order", "i want to order",
+        "i'd like to order", "id like to order", "make an order",
+        "want to place an order", "ordering a cake", "order a cake",
+    }
+    if any(p in q_lower for p in order_phrases):
+        return {
+            "answer": (
+                "Please leave your name, order details, date required, and "
+                "upload any design ideas, and my team will get back to you "
+                "with pricing and order confirmation during our business "
+                "hours 😊\n\nThank you for choosing Sugamaze 💕"
+            ),
             "grounded": True,
             "sources": []
         }
