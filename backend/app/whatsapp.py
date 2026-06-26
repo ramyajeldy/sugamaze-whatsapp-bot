@@ -51,6 +51,26 @@ def extract_message(payload: dict):
         return None
 
 
+def extract_media(payload: dict):
+    """Return (from_number, media_type, media_id, caption) for an inbound
+    image/document message (e.g. a customer's cake design idea), or None.
+    Caption may be empty string."""
+    try:
+        entry = payload["entry"][0]
+        change = entry["changes"][0]["value"]
+        messages = change.get("messages")
+        if not messages:
+            return None
+        msg = messages[0]
+        media_type = msg.get("type")
+        if media_type not in {"image", "document"}:
+            return None
+        media = msg[media_type]
+        return msg["from"], media_type, media["id"], media.get("caption", "")
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
 def extract_button_reply(payload: dict):
     """Return (from_number, button_id) if the inbound message is a button
     click from an interactive message, else None."""
@@ -85,6 +105,24 @@ def send_message(to: str, text: str):
     return r.json()
 
 
+def forward_media(to: str, media_type: str, media_id: str, caption: str = ""):
+    """Re-send a media item the bot received (by its Meta media id) to a
+    different recipient — used to forward a customer's design photo/file
+    straight to the shop's WhatsApp. Works because the media stays hosted
+    on the same WhatsApp Business Account; no download/re-upload needed."""
+    url = f"{GRAPH_URL}/{_settings.whatsapp_phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {_settings.whatsapp_token}"}
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": media_type,
+        media_type: {"id": media_id, "caption": caption},
+    }
+    r = httpx.post(url, json=payload, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+
 def send_template(to: str, template_name: str, params: list[str], language="en_US"):
     """Send an approved message template — required for business-initiated
     messages to a recipient outside the 24-hour customer-service window
@@ -111,6 +149,57 @@ def send_template(to: str, template_name: str, params: list[str], language="en_U
     r = httpx.post(url, json=payload, headers=headers, timeout=20)
     r.raise_for_status()
     return r.json()
+
+
+def send_list(to: str, header_text: str, body_text: str, button_text: str,
+              rows: list[tuple[str, str]]):
+    """A WhatsApp 'list' interactive message — unlike buttons (max 3), lists
+    support up to 10 rows. rows is a list of (id, title) pairs."""
+    url = f"{GRAPH_URL}/{_settings.whatsapp_phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {_settings.whatsapp_token}"}
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "list",
+            "header": {"type": "text", "text": header_text},
+            "body": {"text": body_text},
+            "action": {
+                "button": button_text,
+                "sections": [
+                    {
+                        "rows": [
+                            {"id": rid, "title": title} for rid, title in rows
+                        ]
+                    }
+                ],
+            },
+        },
+    }
+    r = httpx.post(url, json=payload, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+
+def extract_list_reply(payload: dict):
+    """Return (from_number, row_id) if the inbound message is a row
+    selection from a list message, else None."""
+    try:
+        entry = payload["entry"][0]
+        change = entry["changes"][0]["value"]
+        messages = change.get("messages")
+        if not messages:
+            return None
+        msg = messages[0]
+        if msg.get("type") != "interactive":
+            return None
+        interactive = msg["interactive"]
+        if interactive.get("type") != "list_reply":
+            return None
+        return msg["from"], interactive["list_reply"]["id"]
+    except (KeyError, IndexError, TypeError):
+        return None
 
 
 def send_buttons(to: str, body_text: str, buttons: list[tuple[str, str]]):

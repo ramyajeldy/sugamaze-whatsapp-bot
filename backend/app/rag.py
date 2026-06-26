@@ -102,101 +102,25 @@ ESCALATION = (
 # appended after a regular FAQ answer.
 CLOSING_LINE = "Thank you for contacting Sugamaze! Hope to see you around soon 🙂"
 
+TEAM_ESCALATION_LINE = "A team member will reach out to you soon. Thank you for your patience."
 
-def _build_context(hits):
-    blocks, sources = [], []
-    for i, h in enumerate(hits, start=1):
-        meta = h.get("metadata") or {}
-        blocks.append(f"[{i}] (from {meta.get('title', 'source')}):\n{h['text']}")
-        sources.append(
-            {"n": i, "source": meta.get("source"), "title": meta.get("title")}
-        )
-    return "\n\n".join(blocks), sources
+ORDER_TEXT = (
+    "Please leave your name, order details, date required, and "
+    "upload any design ideas, and my team will get back to you "
+    "with pricing and order confirmation during our business "
+    "hours 😊\n\nThank you for choosing Sugamaze 💕"
+)
 
+LOCATION_TEXT = "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍"
 
-def answer(tenant_id, question, customer_phone: str = None):
-    # Handle simple greetings and thank yous
-    q_lower = question.lower().strip()
+HOURS_TEXT = (
+    "🕐 *Monday:* 11:00 am – 8:00 pm\n"
+    "❌ *Tuesday:* Closed\n"
+    "🕐 *Wednesday – Friday:* 11:00 am – 8:00 pm\n"
+    "🕐 *Saturday & Sunday:* 10:00 am – 9:00 pm"
+)
 
-    if q_lower in {"hi", "hello", "hey", "hello!", "hi!", "hey!"}:
-        return {
-            "answer": "Hi there! 👋 Welcome to Sugamaze. How can I help you with our cakes today?",
-            "grounded": True,
-            "sources": []
-        }
-
-    if q_lower in {"thanks", "thank you", "thanks!", "bye", "goodbye", "bye!"}:
-        return {
-            "answer": CLOSING_LINE,
-            "grounded": True,
-            "sources": []
-        }
-
-    # Order intent: collect the details the shop needs instead of trying to
-    # quote/confirm anything ourselves — only the team can do that.
-    order_phrases = {
-        "i want to place an order", "i want to order", "place an order",
-        "i'd like to order", "i would like to order", "place order",
-        "i want to order a cake", "how do i order", "how can i order",
-        "i want to place order",
-    }
-    if any(p in q_lower for p in order_phrases):
-        return {
-            "answer": (
-                "Please leave your name, order details, date required, and "
-                "upload any design ideas, and my team will get back to you "
-                "with pricing and order confirmation during our business "
-                "hours. Thank you for choosing Sugamaze 💕"
-            ),
-            "grounded": True,
-            "sources": []
-        }
-
-    # Escalate any allergy-related questions to shop owner (safety critical)
-    allergy_keywords = {"allerg", "vegan", "gluten", "dairy", "nuts", "nut-free", "egg-free", "lactose", "celiac", "intolerant", "sensitivity"}
-    if any(keyword in q_lower for keyword in allergy_keywords):
-        if customer_phone:
-            notify.notify_escalation(customer_phone, question)
-        return {
-            "answer": ESCALATION,
-            "grounded": False,
-            "sources": []
-        }
-
-    # Always give the exact address for any location-related phrasing —
-    # too important to leave to retrieval/generation variance.
-    location_keywords = {"located", "location", "address"}
-    where_phrases = {"where are you", "where is sugamaze", "where is your store",
-                      "where is your shop", "where can i find you", "find your store"}
-    if any(k in q_lower for k in location_keywords) or any(p in q_lower for p in where_phrases):
-        return {
-            "answer": "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍",
-            "grounded": True,
-            "sources": []
-        }
-
-    # Detect order-placing intent and collect structured details instead of
-    # guessing at pricing/availability — those require a human to confirm.
-    order_phrases = {
-        "place an order", "place order", "want to order", "i want to order",
-        "i'd like to order", "id like to order", "make an order",
-        "want to place an order", "ordering a cake", "order a cake",
-    }
-    if any(p in q_lower for p in order_phrases):
-        return {
-            "answer": (
-                "Please leave your name, order details, date required, and "
-                "upload any design ideas, and my team will get back to you "
-                "with pricing and order confirmation during our business "
-                "hours 😊\n\nThank you for choosing Sugamaze 💕"
-            ),
-            "grounded": True,
-            "sources": []
-        }
-
-    # Trigger menu if "menu" appears anywhere in the question
-    if "menu" in q_lower:
-        menu_text = """✨ *Sugamaze Menu* ✨
+MENU_TEXT = """✨ *Sugamaze Menu* ✨
 
 *Custom Cakes* (all 100% eggless):
 • Wedding cakes (tiered)
@@ -222,11 +146,85 @@ def answer(tenant_id, question, customer_phone: str = None):
 💕 Every cake is handcrafted with love! Custom cakes are quoted based on size, design & flavour.
 
 Ready to place your order? Call us at *+1 (905) 655-7878* or visit sugamaze.ca/contact-us — let's make your celebration sweet! 🎂✨"""
+
+
+def _build_context(hits):
+    blocks, sources = [], []
+    for i, h in enumerate(hits, start=1):
+        meta = h.get("metadata") or {}
+        blocks.append(f"[{i}] (from {meta.get('title', 'source')}):\n{h['text']}")
+        sources.append(
+            {"n": i, "source": meta.get("source"), "title": meta.get("title")}
+        )
+    return "\n\n".join(blocks), sources
+
+
+GREETINGS = {"hi", "hello", "hey", "hello!", "hi!", "hey!"}
+
+
+def is_greeting(question: str) -> bool:
+    return question.lower().strip() in GREETINGS
+
+
+def answer(tenant_id, question, customer_phone: str = None):
+    # Handle simple greetings and thank yous
+    q_lower = question.lower().strip()
+
+    if q_lower in GREETINGS:
         return {
-            "answer": menu_text,
+            "answer": "Hi there! 👋 Welcome to Sugamaze. How can I help you with our cakes today?",
             "grounded": True,
             "sources": []
         }
+
+    if q_lower in {"thanks", "thank you", "thanks!", "bye", "goodbye", "bye!"}:
+        return {
+            "answer": CLOSING_LINE,
+            "grounded": True,
+            "sources": []
+        }
+
+    # Order intent: collect the details the shop needs instead of trying to
+    # quote/confirm anything ourselves — only the team can do that.
+    order_phrases = {
+        "i want to place an order", "i want to order", "place an order",
+        "i'd like to order", "id like to order", "i would like to order",
+        "place order", "i want to order a cake", "how do i order",
+        "how can i order", "i want to place order", "want to order",
+        "make an order", "want to place an order", "ordering a cake",
+        "order a cake",
+    }
+    if any(p in q_lower for p in order_phrases):
+        return {"answer": ORDER_TEXT, "grounded": True, "sources": []}
+
+    # Escalate any allergy-related questions to shop owner (safety critical)
+    allergy_keywords = {"allerg", "vegan", "gluten", "dairy", "nuts", "nut-free", "egg-free", "lactose", "celiac", "intolerant", "sensitivity"}
+    if any(keyword in q_lower for keyword in allergy_keywords):
+        if customer_phone:
+            notify.notify_escalation(customer_phone, question)
+        return {
+            "answer": ESCALATION,
+            "grounded": False,
+            "sources": []
+        }
+
+    # Always give the exact address for any location-related phrasing —
+    # too important to leave to retrieval/generation variance.
+    location_keywords = {"located", "location", "address"}
+    where_phrases = {"where are you", "where is sugamaze", "where is your store",
+                      "where is your shop", "where can i find you", "find your store"}
+    if any(k in q_lower for k in location_keywords) or any(p in q_lower for p in where_phrases):
+        return {"answer": LOCATION_TEXT, "grounded": True, "sources": []}
+
+    # Always give the exact hours for any hours-related phrasing — same
+    # reasoning as location: too important to leave to retrieval variance.
+    hours_keywords = {"hours", "open", "close", "closing", "opening"}
+    if any(k in q_lower for k in hours_keywords):
+        return {"answer": HOURS_TEXT, "grounded": True, "sources": []}
+
+    # Trigger menu if "menu" appears anywhere in the question
+    if "menu" in q_lower:
+        return {"answer": MENU_TEXT, "grounded": True, "sources": []}
 
     hits = store.query(tenant_id, question, _settings.top_k)
 

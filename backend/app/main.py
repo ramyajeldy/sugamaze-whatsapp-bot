@@ -15,7 +15,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-from . import autoseed, ingest, rag, state, store, whatsapp
+from . import autoseed, ingest, notify, rag, state, store, whatsapp
 from .config import get_settings
 from .schemas import ChatRequest, IngestUrlRequest, IngestTextRequest
 
@@ -41,6 +41,26 @@ async def startup_autoseed():
 @app.on_event("startup")
 async def startup_idle_checkin_loop():
     asyncio.create_task(_idle_checkin_loop())
+
+
+WELCOME_MENU_ROWS = [
+    ("opt_order", "Place a custom order"),
+    ("opt_menu", "View our menu"),
+    ("opt_hours", "Store hours"),
+    ("opt_address", "Store address"),
+    ("opt_team", "Talk to our team"),
+    ("opt_other", "Others"),
+]
+
+
+def _send_welcome_menu(to: str):
+    whatsapp.send_list(
+        to,
+        header_text="Thank you for contacting Sugamaze! 🙂",
+        body_text="Tell me what I can help you with today",
+        button_text="Choose an option",
+        rows=WELCOME_MENU_ROWS,
+    )
 
 
 async def _idle_checkin_loop():
@@ -108,7 +128,6 @@ def get_stats(tenant_id: str):
 def debug_config():
     # Temporary diagnostic endpoint — no secrets exposed, just presence/value
     # of non-sensitive settings used by the escalation notification path.
-    from . import notify
     return {
         "escalation_whatsapp_to": _settings.escalation_whatsapp_to,
         "escalation_email": _settings.escalation_email,
@@ -150,9 +169,43 @@ async def whatsapp_incoming(request: Request):
             whatsapp.send_message(from_number, rag.CLOSING_LINE)
         return {"ok": True}
 
+    list_reply = whatsapp.extract_list_reply(payload)
+    if list_reply is not None:
+        from_number, row_id = list_reply
+        state.touch(from_number)
+        if row_id == "opt_order":
+            whatsapp.send_message(from_number, rag.ORDER_TEXT)
+        elif row_id == "opt_menu":
+            whatsapp.send_message(from_number, rag.MENU_TEXT)
+        elif row_id == "opt_hours":
+            whatsapp.send_message(from_number, rag.HOURS_TEXT)
+        elif row_id == "opt_address":
+            whatsapp.send_message(from_number, rag.LOCATION_TEXT)
+        elif row_id == "opt_team":
+            notify.notify_escalation(from_number, "Customer asked to talk to the team directly.")
+            whatsapp.send_message(from_number, rag.TEAM_ESCALATION_LINE)
+        elif row_id == "opt_other":
+            whatsapp.send_message(from_number, "Sure! Go ahead and ask your question 😊")
+        return {"ok": True}
+
+    media = whatsapp.extract_media(payload)
+    if media is not None:
+        from_number, media_type, media_id, caption = media
+        state.touch(from_number)
+        notify.notify_order_media(from_number, media_type, media_id, caption)
+        whatsapp.send_message(from_number, "Got it! Your design has been shared with our team 💕")
+        return {"ok": True}
+
     parsed = whatsapp.extract_message(payload)
     if parsed is None:
         # Status callbacks (delivered/read) and non-text messages land here.
+        return {"ok": True}
+
+    # Greetings get the interactive welcome menu instead of plain text.
+    greet_number, greet_text = parsed
+    if rag.is_greeting(greet_text):
+        state.touch(greet_number)
+        _send_welcome_menu(greet_number)
         return {"ok": True}
 
     from_number, text = parsed
