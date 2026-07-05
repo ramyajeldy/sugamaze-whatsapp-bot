@@ -50,7 +50,12 @@ async def reseed_if_empty(tenant_id: str):
     for md_file in sorted(KNOWLEDGE_DIR.glob("*.md")):
         try:
             text = md_file.read_text(encoding="utf-8")
-            n = ingest.ingest_text(tenant_id, md_file.name, text)
+            if md_file.name == "faq.md":
+                # FAQ file uses Q&A pairs — one chunk per pair so retrieval
+                # always surfaces the exact reviewed answer, not a mixed blob.
+                n = ingest.ingest_faq_md(tenant_id, md_file.name, text)
+            else:
+                n = ingest.ingest_text(tenant_id, md_file.name, text)
             logger.info(f"[autoseed] ingested {md_file.name}: {n} chunks")
         except Exception as e:
             logger.error(f"[autoseed] failed on {md_file.name}: {e}")

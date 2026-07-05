@@ -34,6 +34,9 @@ treat it that way.
   delivery timelines, policies, or any commitment on the shop's behalf.
 - If two pieces of context disagree or one is vague and one is specific,
   always prefer the more specific, concrete one.
+- When context contains a Q&A pair whose question directly matches what the
+  customer asked, reproduce the answer faithfully — do not rephrase, shorten,
+  or rewrite it.
 - Never truncate or abbreviate a phone number, address, price, or any
   other concrete detail mid-way — always state it in full, exactly as
   given in <context>.
@@ -42,11 +45,24 @@ treat it that way.
   "I don't have that information, but I've let the team know — a team member will get back to you on this. Thank you for your patience!"
   Do not soften, guess, or partially answer instead.
 
+## Answer Length Calibration
+- Match the answer length exactly to what was asked. A yes/no question
+  gets one sentence. A "how do I…" gets the full steps. A list question
+  (what sizes, what flavours) gets a brief list — nothing more.
+- Never pad an answer with background information the customer didn't ask
+  for. Never cut a multi-part answer short.
+- When the context contains a Q&A pair that directly matches the question,
+  give that answer in full — do not summarise or trim it.
+- Whenever you direct a customer to contact the shop (for custom orders,
+  pricing quotes, allergy questions, or anything requiring a human), always
+  include the full phone number *+1 (905) 655-7878* and email
+  *info@sugamaze.ca* in your reply.
+
 ## Tone & Style
 - Warm, soft, friendly — like a helpful person texting back, not a
   corporate script. Never robotic, never stiff.
-- Keep replies short and to the point: 1-3 sentences unless the question
-  truly needs a list (hours, menu items).
+- Keep replies conversational: short for simple questions, complete for
+  detailed ones — never cut off mid-answer and never over-explain.
 - Use pleasant, cool emojis sparingly and only where they naturally fit
   (🎂 😊 📍 ✨) — never more than 1-2 per message, never forced.
 - No slang that feels out of place, no overly casual abbreviations.
@@ -97,6 +113,16 @@ ESCALATION = (
     "member will get back to you on this. Thank you for your patience!"
 )
 
+# Used specifically for allergy/dietary escalations — always includes direct
+# contact so the customer doesn't have to wait for a callback.
+ALLERGY_ESCALATION = (
+    "For allergy and dietary questions, please contact our team directly "
+    "for a safe, accurate answer:\n\n"
+    "📞 *+1 (905) 655-7878*\n"
+    "✉️ *info@sugamaze.ca*\n\n"
+    "Your safety is our priority — the team will be happy to help! 😊"
+)
+
 # The one true sign-off — used only when a conversation is genuinely
 # ending (customer says thanks/bye, or declines to keep chatting), never
 # appended after a regular FAQ answer.
@@ -105,10 +131,13 @@ CLOSING_LINE = "Thank you for contacting Sugamaze! Hope to see you around soon �
 TEAM_ESCALATION_LINE = "A team member will reach out to you soon. Thank you for your patience."
 
 ORDER_TEXT = (
-    "Please leave your name, order details, date required, and "
-    "upload any design ideas, and my team will get back to you "
-    "with pricing and order confirmation during our business "
-    "hours 😊\n\nThank you for choosing Sugamaze 💕"
+    "Please leave your name, order details, date required, and upload any "
+    "design ideas, and my team will get back to you with pricing and order "
+    "confirmation during our business hours 😊\n\n"
+    "You can also reach us directly at:\n"
+    "📞 *+1 (905) 655-7878*\n"
+    "✉️ *info@sugamaze.ca*\n\n"
+    "Thank you for choosing Sugamaze 💕"
 )
 
 LOCATION_TEXT = "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍"
@@ -137,7 +166,7 @@ MENU_TEXT = """✨ *Sugamaze Menu* ✨
 • Ready-to-go cakes (fresh, great for last-minute celebrations!)
 
 *Individual Treats:*
-• Dessert cups — $4.00
+• Dessert cups — $5.00
 • Cupcakes
 • Cake pops
 • Macaroons — $12.00
@@ -199,16 +228,17 @@ def answer(tenant_id, question, customer_phone: str = None):
             notify.notify_escalation(customer_phone, "Customer wants to place a custom order.")
         return {"answer": ORDER_TEXT, "grounded": True, "sources": []}
 
-    # Escalate any allergy-related questions to shop owner (safety critical)
-    allergy_keywords = {"allerg", "vegan", "gluten", "dairy", "nuts", "nut-free", "egg-free", "lactose", "celiac", "intolerant", "sensitivity"}
+    # Escalate specific dietary/allergy safety questions — these need a
+    # human answer, not a bot guess. "eggless" and "egg-free" are NOT here
+    # because the FAQ explicitly answers them (all cakes are 100% eggless).
+    allergy_keywords = {
+        "vegan", "gluten", "dairy", "nuts", "nut-free", "lactose",
+        "celiac", "intolerant", "sensitivity", "allerg",
+    }
     if any(keyword in q_lower for keyword in allergy_keywords):
         if customer_phone:
             notify.notify_escalation(customer_phone, question)
-        return {
-            "answer": ESCALATION,
-            "grounded": False,
-            "sources": []
-        }
+        return {"answer": ALLERGY_ESCALATION, "grounded": False, "sources": []}
 
     # Always give the exact address for any location-related phrasing —
     # too important to leave to retrieval/generation variance.

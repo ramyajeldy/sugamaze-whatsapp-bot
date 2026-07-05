@@ -39,6 +39,29 @@ def notify_escalation(customer_phone: str, question: str):
         print("[ESCALATION] WhatsApp disabled (no WHATSAPP_PHONE_NUMBER_ID)")
 
 
+def notify_order_media(customer_phone: str, media_type: str, media_id: str, caption: str = ""):
+    """Forward a customer's uploaded design photo/file straight to the shop's
+    WhatsApp. Falls back to an email alert (without the file — Meta's media
+    URLs expire, so we can't retrieve a copy after the fact) if forwarding
+    fails, e.g. WhatsApp isn't configured."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[ORDER MEDIA] Customer {customer_phone} sent a {media_type} (id={media_id})")
+
+    if _settings.whatsapp_phone_number_id:
+        try:
+            label = f"📎 Design idea from +{customer_phone}"
+            if caption:
+                label += f": {caption}"
+            whatsapp.forward_media(_settings.escalation_whatsapp_to, media_type, media_id, label)
+            return
+        except Exception as e:
+            print(f"[ERROR] Forwarding order media failed: {type(e).__name__}: {e}")
+
+    if _settings.smtp_user and _settings.smtp_password:
+        note = f"[Customer uploaded a {media_type} — forward via WhatsApp media id {media_id}]"
+        _send_email(customer_phone, note, timestamp)
+
+
 def _send_email(customer_phone: str, question: str, timestamp: str):
     """Send email alert to the shop."""
     try:

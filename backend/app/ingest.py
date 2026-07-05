@@ -86,3 +86,43 @@ def ingest_text(tenant_id, source, text):
     if not text.strip():
         raise ValueError("Empty text.")
     return _store_doc(tenant_id, source=source, title=source, text=text)
+
+
+# Matches a bold question heading: **Question text?**
+_FAQ_Q_PATTERN = re.compile(r"^\*\*(.+?)\*\*\s*$", re.MULTILINE)
+
+
+def ingest_faq_md(tenant_id, source, text):
+    """Parse a markdown FAQ file where each entry is formatted as:
+
+        **Question?**
+        Answer text here.
+
+    Each Q+A pair is stored as its own chunk — one question, one answer, one
+    vector. This guarantees retrieval surfaces the exact reviewed answer for
+    that question rather than a mixed chunk containing 4-6 unrelated Q&As.
+    Returns the number of Q&A pairs ingested.
+    """
+    pairs = []
+    questions = list(_FAQ_Q_PATTERN.finditer(text))
+    for i, match in enumerate(questions):
+        question = match.group(1).strip()
+        answer_start = match.end()
+        answer_end = questions[i + 1].start() if i + 1 < len(questions) else len(text)
+        answer = text[answer_start:answer_end].strip()
+        # Skip section separators and empty answers
+        answer = re.sub(r"^---+\s*", "", answer).strip()
+        if answer and not answer.startswith("*Note:"):
+            pairs.append((question, answer))
+
+    ids, docs, metas = [], [], []
+    for i, (question, answer) in enumerate(pairs):
+        chunk = f"Q: {question}\nA: {answer}"
+        uid = hashlib.sha1(chunk.encode()).hexdigest()
+        ids.append(uid)
+        docs.append(chunk)
+        metas.append({"source": source, "title": question, "chunk": i})
+
+    if ids:
+        store.add_chunks(tenant_id, ids, docs, metas)
+    return len(ids)

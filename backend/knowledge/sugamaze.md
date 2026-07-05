@@ -41,7 +41,7 @@ All cakes are 100% eggless. Categories include:
 - Patties / Puffs
 
 ## Sample prices
-Dessert Cups: $4.00
+Dessert Cups: $5.00
 Macaroons: $12.00
 Gulab Jamun Cake: $35.00
 (Most cakes are custom-quoted by occasion, size, and design. For a quote, contact
