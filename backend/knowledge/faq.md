@@ -266,7 +266,7 @@ Yes, you can. Certain combinations may not be possible.
 ## Flavors & Design
 
 **What flavors do you offer?**
-Please contact us at +1 (905) 655-7878 or info@sugamaze.ca for the current flavour list.
+We offer Strawberry, Pineapple, Chocolate, Butterscotch, Black Forest, Rasmalai, and Gulab Jamun. All cakes are 100% eggless. Certain flavour combinations may not be available for every cake type — feel free to ask when placing your order!
 
 **Do you have chocolate cake?**
 Yes, we do.

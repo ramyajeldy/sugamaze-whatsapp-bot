@@ -101,6 +101,18 @@ just redirect warmly and move on.
 - If asked whether you're a bot/AI, answer honestly and warmly — never
   pretend to be a human.
 
+## When to Ask for Clarification
+- If a question is genuinely ambiguous and the right answer depends on a
+  specific detail the customer hasn't given (e.g. "how much does a cake
+  cost?" without a size or type, or "what flavours do you have?" where
+  they might mean a specific cake category), ask ONE short, friendly
+  clarifying question before answering.
+- One question at a time — never a list of questions.
+- If the context already contains enough to give a useful answer, give it
+  directly. Only ask when it would genuinely change what you say.
+- Example: "Are you looking for flavours for a custom cake or our
+  ready-to-eat range? 😊"
+
 ## Formatting (WhatsApp-specific)
 - Use *single asterisks* for bold — never **double** (that's Markdown,
   not WhatsApp).
@@ -148,33 +160,6 @@ HOURS_TEXT = (
     "🕐 *Wednesday – Friday:* 11:00 am – 8:00 pm\n"
     "🕐 *Saturday & Sunday:* 10:00 am – 9:00 pm"
 )
-
-MENU_TEXT = """✨ *Sugamaze Menu* ✨
-
-*Custom Cakes* (all 100% eggless):
-• Wedding cakes (tiered)
-• Birthday cakes (custom designs)
-• Anniversary cakes
-• Gender reveal cakes
-• Photo cakes (edible printed images)
-• Graduation cakes
-• Valentine cakes
-• Theme-based cakes
-• Sweet 16 cakes
-
-*Ready-to-Eat Cakes:*
-• Ready-to-go cakes (fresh, great for last-minute celebrations!)
-
-*Individual Treats:*
-• Dessert cups — $5.00
-• Cupcakes
-• Cake pops
-• Macaroons — $12.00
-• Patties/Puffs
-
-💕 Every cake is handcrafted with love! Custom cakes are quoted based on size, design & flavour.
-
-Ready to place your order? Call us at *+1 (905) 655-7878* or visit sugamaze.ca/contact-us — let's make your celebration sweet! 🎂✨"""
 
 
 def _build_context(hits):
@@ -253,10 +238,6 @@ def answer(tenant_id, question, customer_phone: str = None):
     hours_keywords = {"hours", "open", "close", "closing", "opening"}
     if any(k in q_lower for k in hours_keywords):
         return {"answer": HOURS_TEXT, "grounded": True, "sources": []}
-
-    # Trigger menu if "menu" appears anywhere in the question
-    if "menu" in q_lower:
-        return {"answer": MENU_TEXT, "grounded": True, "sources": []}
 
     hits = store.query(tenant_id, question, _settings.top_k)
 
