@@ -37,7 +37,7 @@ class Settings:
     default_tenant_id: str = os.environ.get("DEFAULT_TENANT_ID", "sugamaze")
 
     # Idle check-in: nudge a customer who's gone quiet mid-conversation.
-    idle_checkin_seconds: float = float(os.environ.get("IDLE_CHECKIN_SECONDS", "45"))
+    idle_checkin_seconds: float = float(os.environ.get("IDLE_CHECKIN_SECONDS", "60"))
 
     # Escalation notifications (alert shop when bot can't answer)
     escalation_email: str = os.environ.get("ESCALATION_EMAIL", "info@sugamaze.ca")
