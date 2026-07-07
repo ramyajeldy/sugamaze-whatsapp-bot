@@ -10,6 +10,14 @@ _last_message_at: dict[str, float] = {}
 _followup_sent: set[str] = set()
 _conversation_ended: set[str] = set()
 
+# Short per-customer conversation history so the bot can resolve follow-up
+# questions ("how much is that one?") without re-explaining themselves.
+# Capped small on purpose — this is for reference resolution, not a full
+# transcript, and it's cleared whenever a conversation genuinely restarts
+# (a fresh greeting, or an idle "No").
+_history: dict[str, list[dict]] = {}
+MAX_HISTORY_TURNS = 6  # ~3 back-and-forth exchanges
+
 # When the server starts, Meta may replay webhooks from the previous session
 # (messages that arrived while the server was down). These arrive within the
 # first few seconds of startup and would incorrectly re-add customers who
@@ -53,3 +61,21 @@ def end_conversation(phone: str):
     _last_message_at.pop(phone, None)
     _followup_sent.discard(phone)
     _conversation_ended.add(phone)
+    clear_history(phone)
+
+
+def get_history(phone: str) -> list[dict]:
+    """Return recent turns as [{"role": "user"|"assistant", "content": str}, ...]."""
+    return list(_history.get(phone, []))
+
+
+def append_turn(phone: str, role: str, content: str):
+    hist = _history.setdefault(phone, [])
+    hist.append({"role": role, "content": content})
+    del hist[:-MAX_HISTORY_TURNS]
+
+
+def clear_history(phone: str):
+    """Call when a conversation genuinely restarts (fresh greeting, or the
+    customer ending the previous chat) so old context doesn't bleed in."""
+    _history.pop(phone, None)

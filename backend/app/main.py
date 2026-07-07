@@ -204,15 +204,20 @@ async def whatsapp_incoming(request: Request):
         # Status callbacks (delivered/read) and non-text messages land here.
         return {"ok": True}
 
-    # Greetings get the interactive welcome menu instead of plain text.
+    # Greetings get the interactive welcome menu instead of plain text, and
+    # start a fresh conversation — old history shouldn't bleed into a new chat.
     greet_number, greet_text = parsed
     if rag.is_greeting(greet_text):
         state.touch(greet_number)
+        state.clear_history(greet_number)
         _send_welcome_menu(greet_number)
         return {"ok": True}
 
     from_number, text = parsed
     state.touch(from_number)
-    result = rag.answer(_settings.default_tenant_id, text, customer_phone=from_number)
+    history = state.get_history(from_number)
+    result = rag.answer(_settings.default_tenant_id, text, customer_phone=from_number, history=history)
     whatsapp.send_message(from_number, result["answer"])
+    state.append_turn(from_number, "user", text)
+    state.append_turn(from_number, "assistant", result["answer"])
     return {"ok": True}

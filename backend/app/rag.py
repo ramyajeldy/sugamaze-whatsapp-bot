@@ -104,6 +104,17 @@ just redirect warmly and move on.
 - If asked whether you're a bot/AI, answer honestly and warmly — never
   pretend to be a human.
 
+## Using Conversation History
+- You may be shown a few recent turns before the current question. Use them
+  ONLY to resolve what the customer is referring to (e.g. "that one," "how
+  much is it," "can I get it in chocolate instead") — never as a source of
+  facts.
+- The <context> given for the CURRENT question is the only place you may
+  pull prices, policies, or other concrete details from — even if an
+  earlier turn already stated something similar. If the current <context>
+  doesn't cover what's being asked about, escalate; do not answer from
+  memory of an earlier turn.
+
 ## When to Ask for Clarification vs. When to Escalate
 These are two different situations — do not confuse them:
 
@@ -187,7 +198,7 @@ def is_greeting(question: str) -> bool:
     return question.lower().strip() in GREETINGS
 
 
-def answer(tenant_id, question, customer_phone: str = None):
+def answer(tenant_id, question, customer_phone: str = None, history: list = None):
     # Handle simple greetings and thank yous
     q_lower = question.lower().strip()
 
@@ -260,17 +271,17 @@ def answer(tenant_id, question, customer_phone: str = None):
         return {"answer": ESCALATION, "grounded": False, "sources": []}
 
     context, sources = _build_context(hits)
+    messages = list(history) if history else []
+    messages.append({
+        "role": "user",
+        "content": f"<context>\n{context}\n</context>\n\nCustomer question: {question}",
+    })
     msg = _client.messages.create(
         model=_settings.claude_model,
         max_tokens=600,
         temperature=0.2,  # precise FAQ answers, not creative writing — avoid random slip-ups (e.g. truncated phone numbers)
         system=SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": f"<context>\n{context}\n</context>\n\nCustomer question: {question}",
-            }
-        ],
+        messages=messages,
     )
     text = "".join(b.text for b in msg.content if b.type == "text").strip()
 
