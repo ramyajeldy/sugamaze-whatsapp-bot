@@ -39,6 +39,58 @@ def notify_escalation(customer_phone: str, question: str):
         print("[ESCALATION] WhatsApp disabled (no WHATSAPP_PHONE_NUMBER_ID)")
 
 
+def notify_new_order(customer_phone: str):
+    """Alert the shop that a customer wants to place a custom order. This is
+    distinct from notify_escalation (a "couldn't answer" case) — a new order
+    is a sales lead, not a failure, and needs to stand out to the owner as
+    higher priority than a generic FAQ miss."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[NEW ORDER] Customer {customer_phone} wants to place a custom order")
+
+    if _settings.smtp_user and _settings.smtp_password:
+        _send_email(
+            customer_phone,
+            "🎂 NEW CUSTOM ORDER — customer wants to place an order. "
+            "Please reach out to discuss details, design, and pricing.",
+            timestamp,
+        )
+
+    if _settings.whatsapp_phone_number_id:
+        _send_order_whatsapp(customer_phone, timestamp)
+
+
+def _send_order_whatsapp(customer_phone: str, timestamp: str):
+    """Same template/fallback pattern as escalation alerts, but with wording
+    that makes it obvious to the shop this is a new order lead, not a bot
+    failure."""
+    global last_error, last_attempt
+    last_attempt = f"NEW ORDER to={_settings.escalation_whatsapp_to} at={timestamp}"
+    try:
+        result = whatsapp.send_template(
+            _settings.escalation_whatsapp_to,
+            "escalation_alert_v2",
+            [f"+{customer_phone}", "wants to place a NEW CUSTOM ORDER — please reach out to confirm details and pricing"],
+        )
+        last_error = f"SUCCESS (template): {result}"
+        return
+    except Exception as e:
+        print(f"[WARN] Order template send failed, falling back to free text: {e}")
+
+    try:
+        msg = (
+            f"🎂 *NEW CUSTOM ORDER*\n\n"
+            f"Customer: +{customer_phone}\n"
+            f"They'd like to place a custom order — please reach out to "
+            f"discuss details, design, and pricing.\n"
+            f"Time: {timestamp}"
+        )
+        result = whatsapp.send_message(_settings.escalation_whatsapp_to, msg)
+        last_error = f"SUCCESS (fallback text): {result}"
+    except Exception as e:
+        last_error = f"{type(e).__name__}: {e}"
+        print(f"[ERROR] New-order WhatsApp notification failed: {type(e).__name__}: {e}")
+
+
 def notify_order_media(customer_phone: str, media_type: str, media_id: str, caption: str = ""):
     """Forward a customer's uploaded design photo/file straight to the shop's
     WhatsApp. Falls back to an email alert (without the file — Meta's media

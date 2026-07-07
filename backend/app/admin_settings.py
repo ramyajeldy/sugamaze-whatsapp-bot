@@ -27,6 +27,7 @@ DEFAULT_MESSAGES = {
     ),
     "location_text": "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍",
     "order_text": (
+        "I've let our team know you'd like to place a custom order 🎂\n\n"
         "Please leave your name, order details, date required, and upload any "
         "design ideas, and my team will get back to you with pricing and order "
         "confirmation during our business hours 😊\n\n"

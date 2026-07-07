@@ -236,7 +236,7 @@ def answer(tenant_id, question, customer_phone: str = None, history: list = None
     }
     if any(p in q_lower for p in order_phrases):
         if customer_phone:
-            notify.notify_escalation(customer_phone, "Customer wants to place a custom order.")
+            notify.notify_new_order(customer_phone)
         return {"answer": ORDER_TEXT(), "grounded": True, "sources": []}
 
     # Escalate specific dietary/allergy safety questions — these need a
