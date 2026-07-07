@@ -104,6 +104,12 @@
     <label>Store location</label>
     <textarea id="location_text"></textarea>
 
+    <label>Full menu (sent whenever a customer asks about the menu)</label>
+    <textarea id="menu_text" class="tall"></textarea>
+
+    <label>Flavours (sent whenever a customer asks about flavours)</label>
+    <textarea id="flavours_text"></textarea>
+
     <label>Order / custom order message</label>
     <textarea id="order_text"></textarea>
 
@@ -124,7 +130,7 @@
 
   <div class="card">
     <h2>Knowledge Base</h2>
-    <div class="hint">This is what the bot uses to answer everything else (menu, flavours, policies, cake care, etc.). Editing here updates the live bot immediately.</div>
+    <div class="hint">This is what the bot uses to answer everything else (policies, cake care, sizes, delivery, etc. — NOT menu or flavours, those are the fixed messages above). Editing here updates the live bot immediately.</div>
 
     <label>File</label>
     <select id="knowledge-select" onchange="loadKnowledge()"></select>
@@ -165,14 +171,14 @@ async function login() {
 }
 
 function fillMessages(data) {
-  for (const key of ["hours_text","location_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
+  for (const key of ["hours_text","location_text","menu_text","flavours_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
     document.getElementById(key).value = data[key] || "";
   }
 }
 
 async function saveMessages() {
   const body = {};
-  for (const key of ["hours_text","location_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
+  for (const key of ["hours_text","location_text","menu_text","flavours_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
     body[key] = document.getElementById(key).value;
   }
   const status = document.getElementById("messages-status");

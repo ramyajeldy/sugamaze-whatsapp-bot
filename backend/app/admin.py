@@ -39,6 +39,8 @@ class MessagesUpdate(BaseModel):
     allergy_text: str | None = None
     closing_line: str | None = None
     team_escalation_line: str | None = None
+    menu_text: str | None = None
+    flavours_text: str | None = None
 
 
 class KnowledgeUpdate(BaseModel):

@@ -180,6 +180,14 @@ def HOURS_TEXT():
     return admin_settings.get_message("hours_text")
 
 
+def MENU_TEXT():
+    return admin_settings.get_message("menu_text")
+
+
+def FLAVOURS_TEXT():
+    return admin_settings.get_message("flavours_text")
+
+
 def _build_context(hits):
     blocks, sources = [], []
     for i, h in enumerate(hits, start=1):
@@ -256,6 +264,19 @@ def answer(tenant_id, question, customer_phone: str = None, history: list = None
     hours_keywords = {"hours", "open", "close", "closing", "opening"}
     if any(k in q_lower for k in hours_keywords):
         return {"answer": HOURS_TEXT(), "grounded": True, "sources": []}
+
+    # Menu and flavour questions get the fixed, complete list — retrieval
+    # over 20+ website pages can surface a partial answer (e.g. only 5 of 15
+    # cake categories), and "what's on the menu" needs to be complete every
+    # single time. "Menu" takes priority if both words are present, since the
+    # menu text already includes a pointer to ask about flavours.
+    menu_keywords = {"menu", "what do you have", "what do you sell", "what cakes do you make", "what do you offer"}
+    if any(k in q_lower for k in menu_keywords):
+        return {"answer": MENU_TEXT(), "grounded": True, "sources": []}
+
+    flavour_keywords = {"flavor", "flavour", "flavors", "flavours"}
+    if any(k in q_lower for k in flavour_keywords):
+        return {"answer": FLAVOURS_TEXT(), "grounded": True, "sources": []}
 
     hits = store.query(tenant_id, question, _settings.top_k)
 

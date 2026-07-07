@@ -44,6 +44,47 @@ DEFAULT_MESSAGES = {
     ),
     "closing_line": "Thank you for contacting Sugamaze! Hope to see you around soon 🙂",
     "team_escalation_line": "A team member will reach out to you soon. Thank you for your patience.",
+    # Menu and flavours are answered from this fixed text, not retrieval —
+    # a "menu" question needs the FULL list every time, and vector search
+    # over 20+ website pages can't reliably guarantee completeness.
+    "menu_text": (
+        "✨ *Sugamaze Menu* ✨\n\n"
+        "*Custom Cakes* (all 100% eggless):\n"
+        "• Wedding cakes (tiered)\n"
+        "• Pre-wedding cakes\n"
+        "• Birthday cakes (custom designs)\n"
+        "• Anniversary cakes\n"
+        "• Gender reveal cakes\n"
+        "• Photo cakes (edible printed images)\n"
+        "• Graduation cakes\n"
+        "• Valentine cakes\n"
+        "• Theme-based cakes\n"
+        "• Sweet 16 cakes\n\n"
+        "*Ready-to-Eat Cakes:*\n"
+        "• Ready-to-go cakes (fresh, great for last-minute celebrations!)\n\n"
+        "*Individual Treats:*\n"
+        "• Dessert cups — $5.00\n"
+        "• Cupcakes\n"
+        "• Cake pops\n"
+        "• Macaroons — $12.00\n"
+        "• Patties/Puffs\n\n"
+        "*Sizes:* 6\", 8\", 10\", 12\" (round or square), plus Quarter/Half/Full sheet cakes.\n\n"
+        "💕 Every cake is handcrafted with love! Custom cakes are quoted based on size, design & flavour "
+        "(ask me about flavours too!).\n\n"
+        "Ready to place your order? Call *+1 (905) 655-7878* or email *info@sugamaze.ca* 🎂✨"
+    ),
+    "flavours_text": (
+        "🍰 *Our Flavours:*\n"
+        "• Strawberry\n"
+        "• Pineapple\n"
+        "• Chocolate\n"
+        "• Butterscotch\n"
+        "• Black Forest\n"
+        "• Rasmalai\n"
+        "• Gulab Jamun\n\n"
+        "All cakes are 100% eggless. Certain flavour combinations may not be available for every cake type — "
+        "just ask when placing your order! 😊"
+    ),
 }
 
 
