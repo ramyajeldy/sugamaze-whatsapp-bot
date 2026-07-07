@@ -49,6 +49,10 @@ class Settings:
     smtp_user: str = os.environ.get("SMTP_USER", "")
     smtp_password: str = os.environ.get("SMTP_PASSWORD", "")
 
+    # Admin panel (static login — set these in Render env vars, not the repo)
+    admin_username: str = os.environ.get("ADMIN_USERNAME", "admin")
+    admin_password: str = os.environ.get("ADMIN_PASSWORD", "changeme")
+
 
 @lru_cache
 def get_settings() -> "Settings":

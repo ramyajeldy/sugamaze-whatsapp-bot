@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .env
 chroma_data/
+admin_data/
 node_modules/
 *.docx
 docs/unpacked/

@@ -57,6 +57,17 @@ def stats(tenant_id):
     return {"tenant_id": tenant_id, "chunks": col.count()}
 
 
+def delete_by_source(tenant_id, source):
+    """Remove all chunks previously ingested from a given source (e.g. a
+    knowledge filename). Used before re-ingesting an edited file so the old
+    version's chunks don't linger alongside the new ones."""
+    col = _collection(tenant_id)
+    try:
+        col.delete(where={"source": source})
+    except Exception:
+        pass
+
+
 def reset_collection(tenant_id):
     """Delete and recreate the tenant's collection — used before a full
     re-seed so stale chunks (from old chunk-size settings, edited source

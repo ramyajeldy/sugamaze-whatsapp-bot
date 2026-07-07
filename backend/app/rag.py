@@ -14,7 +14,7 @@ worth showing clients (and putting on your resume).
 from anthropic import Anthropic
 
 from .config import get_settings
-from . import store, notify
+from . import store, notify, admin_settings
 
 _settings = get_settings()
 _client = Anthropic(api_key=_settings.anthropic_api_key)
@@ -125,41 +125,33 @@ ESCALATION = (
     "member will get back to you on this. Thank you for your patience!"
 )
 
-# Used specifically for allergy/dietary escalations — always includes direct
-# contact so the customer doesn't have to wait for a callback.
-ALLERGY_ESCALATION = (
-    "For allergy and dietary questions, please contact our team directly "
-    "for a safe, accurate answer:\n\n"
-    "📞 *+1 (905) 655-7878*\n"
-    "✉️ *info@sugamaze.ca*\n\n"
-    "Your safety is our priority — the team will be happy to help! 😊"
-)
+# The following are editable via the admin panel (app/admin_settings.py).
+# These module-level functions always read the latest saved value — or the
+# shipped default if nothing's been edited yet — so admin edits take effect
+# immediately, with no restart needed.
 
-# The one true sign-off — used only when a conversation is genuinely
-# ending (customer says thanks/bye, or declines to keep chatting), never
-# appended after a regular FAQ answer.
-CLOSING_LINE = "Thank you for contacting Sugamaze! Hope to see you around soon 🙂"
+def ALLERGY_ESCALATION():
+    return admin_settings.get_message("allergy_text")
 
-TEAM_ESCALATION_LINE = "A team member will reach out to you soon. Thank you for your patience."
 
-ORDER_TEXT = (
-    "Please leave your name, order details, date required, and upload any "
-    "design ideas, and my team will get back to you with pricing and order "
-    "confirmation during our business hours 😊\n\n"
-    "You can also reach us directly at:\n"
-    "📞 *+1 (905) 655-7878*\n"
-    "✉️ *info@sugamaze.ca*\n\n"
-    "Thank you for choosing Sugamaze 💕"
-)
+def CLOSING_LINE():
+    return admin_settings.get_message("closing_line")
 
-LOCATION_TEXT = "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍"
 
-HOURS_TEXT = (
-    "🕐 *Monday:* 11:00 am – 8:00 pm\n"
-    "❌ *Tuesday:* Closed\n"
-    "🕐 *Wednesday – Friday:* 11:00 am – 8:00 pm\n"
-    "🕐 *Saturday & Sunday:* 10:00 am – 9:00 pm"
-)
+def TEAM_ESCALATION_LINE():
+    return admin_settings.get_message("team_escalation_line")
+
+
+def ORDER_TEXT():
+    return admin_settings.get_message("order_text")
+
+
+def LOCATION_TEXT():
+    return admin_settings.get_message("location_text")
+
+
+def HOURS_TEXT():
+    return admin_settings.get_message("hours_text")
 
 
 def _build_context(hits):
@@ -193,7 +185,7 @@ def answer(tenant_id, question, customer_phone: str = None):
 
     if q_lower in {"thanks", "thank you", "thanks!", "bye", "goodbye", "bye!"}:
         return {
-            "answer": CLOSING_LINE,
+            "answer": CLOSING_LINE(),
             "grounded": True,
             "sources": []
         }
@@ -211,7 +203,7 @@ def answer(tenant_id, question, customer_phone: str = None):
     if any(p in q_lower for p in order_phrases):
         if customer_phone:
             notify.notify_escalation(customer_phone, "Customer wants to place a custom order.")
-        return {"answer": ORDER_TEXT, "grounded": True, "sources": []}
+        return {"answer": ORDER_TEXT(), "grounded": True, "sources": []}
 
     # Escalate specific dietary/allergy safety questions — these need a
     # human answer, not a bot guess. "eggless" and "egg-free" are NOT here
@@ -223,7 +215,7 @@ def answer(tenant_id, question, customer_phone: str = None):
     if any(keyword in q_lower for keyword in allergy_keywords):
         if customer_phone:
             notify.notify_escalation(customer_phone, question)
-        return {"answer": ALLERGY_ESCALATION, "grounded": False, "sources": []}
+        return {"answer": ALLERGY_ESCALATION(), "grounded": False, "sources": []}
 
     # Always give the exact address for any location-related phrasing —
     # too important to leave to retrieval/generation variance.
@@ -231,13 +223,13 @@ def answer(tenant_id, question, customer_phone: str = None):
     where_phrases = {"where are you", "where is sugamaze", "where is your store",
                       "where is your shop", "where can i find you", "find your store"}
     if any(k in q_lower for k in location_keywords) or any(p in q_lower for p in where_phrases):
-        return {"answer": LOCATION_TEXT, "grounded": True, "sources": []}
+        return {"answer": LOCATION_TEXT(), "grounded": True, "sources": []}
 
     # Always give the exact hours for any hours-related phrasing — same
     # reasoning as location: too important to leave to retrieval variance.
     hours_keywords = {"hours", "open", "close", "closing", "opening"}
     if any(k in q_lower for k in hours_keywords):
-        return {"answer": HOURS_TEXT, "grounded": True, "sources": []}
+        return {"answer": HOURS_TEXT(), "grounded": True, "sources": []}
 
     hits = store.query(tenant_id, question, _settings.top_k)
 

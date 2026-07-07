@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sugamaze Bot Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --pink: #e0578a;
+    --pink-dark: #c23e70;
+    --bg: #fdf5f8;
+    --card: #ffffff;
+    --border: #eed7df;
+    --text: #3a2a30;
+    --muted: #8a7580;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 4px; }
+  .card .hint { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+  textarea, input {
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fffdfd;
+    color: var(--text);
+    resize: vertical;
+  }
+  textarea { min-height: 90px; line-height: 1.4; }
+  textarea.tall { min-height: 340px; font-family: ui-monospace, Consolas, monospace; }
+  button {
+    background: var(--pink);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 14px;
+  }
+  button:hover { background: var(--pink-dark); }
+  button.secondary {
+    background: transparent;
+    color: var(--pink-dark);
+    border: 1px solid var(--pink);
+  }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .status { font-size: 13px; margin-left: 4px; }
+  .status.ok { color: #2c7a4b; }
+  .status.err { color: #c23e3e; }
+  select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; }
+  #login-screen { max-width: 340px; margin: 80px auto 0; }
+  #login-screen input { margin-bottom: 10px; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="card">
+    <h2>🎂 Sugamaze Admin</h2>
+    <div class="hint">Sign in to manage the bot</div>
+    <label>Username</label>
+    <input id="login-user" autocomplete="username">
+    <label>Password</label>
+    <input id="login-pass" type="password" autocomplete="current-password">
+    <button onclick="login()">Log in</button>
+    <div id="login-status" class="status err"></div>
+  </div>
+</div>
+
+<div id="app" class="wrap">
+  <h1>🎂 Sugamaze Bot Admin</h1>
+  <div class="sub">Update store details, canned messages, and knowledge content — changes take effect immediately, no redeploy needed.</div>
+
+  <div class="card">
+    <h2>Store Messages</h2>
+    <div class="hint">These are sent automatically for common questions (hours, location, orders, allergies) and when a conversation ends.</div>
+
+    <label>Store hours</label>
+    <textarea id="hours_text"></textarea>
+
+    <label>Store location</label>
+    <textarea id="location_text"></textarea>
+
+    <label>Order / custom order message</label>
+    <textarea id="order_text"></textarea>
+
+    <label>Allergy / dietary escalation message</label>
+    <textarea id="allergy_text"></textarea>
+
+    <label>Closing line (sent when a chat ends)</label>
+    <textarea id="closing_line"></textarea>
+
+    <label>"Talk to our team" message</label>
+    <textarea id="team_escalation_line"></textarea>
+
+    <div class="row">
+      <button onclick="saveMessages()">Save messages</button>
+      <span id="messages-status" class="status"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Knowledge Base</h2>
+    <div class="hint">This is what the bot uses to answer everything else (menu, flavours, policies, cake care, etc.). Editing here updates the live bot immediately.</div>
+
+    <label>File</label>
+    <select id="knowledge-select" onchange="loadKnowledge()"></select>
+
+    <label>Content (Markdown)</label>
+    <textarea id="knowledge-text" class="tall"></textarea>
+
+    <div class="row">
+      <button onclick="saveKnowledge()">Save &amp; update bot</button>
+      <span id="knowledge-status" class="status"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+let creds = null;
+
+function authHeader() {
+  return { "Authorization": "Basic " + btoa(creds.user + ":" + creds.pass) };
+}
+
+async function login() {
+  const user = document.getElementById("login-user").value;
+  const pass = document.getElementById("login-pass").value;
+  const resp = await fetch("/admin/api/messages", {
+    headers: { "Authorization": "Basic " + btoa(user + ":" + pass) }
+  });
+  if (resp.status === 200) {
+    creds = { user, pass };
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    const data = await resp.json();
+    fillMessages(data);
+    loadKnowledgeList();
+  } else {
+    document.getElementById("login-status").textContent = "Invalid username or password.";
+  }
+}
+
+function fillMessages(data) {
+  for (const key of ["hours_text","location_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
+    document.getElementById(key).value = data[key] || "";
+  }
+}
+
+async function saveMessages() {
+  const body = {};
+  for (const key of ["hours_text","location_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
+    body[key] = document.getElementById(key).value;
+  }
+  const status = document.getElementById("messages-status");
+  status.textContent = "Saving...";
+  status.className = "status";
+  try {
+    const resp = await fetch("/admin/api/messages", {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    status.textContent = "Saved ✓";
+    status.className = "status ok";
+  } catch (e) {
+    status.textContent = "Failed to save: " + e.message;
+    status.className = "status err";
+  }
+}
+
+async function loadKnowledgeList() {
+  const resp = await fetch("/admin/api/knowledge", { headers: authHeader() });
+  const data = await resp.json();
+  const select = document.getElementById("knowledge-select");
+  select.innerHTML = "";
+  for (const f of data.files) {
+    const opt = document.createElement("option");
+    opt.value = f;
+    opt.textContent = f;
+    select.appendChild(opt);
+  }
+  if (data.files.length) loadKnowledge();
+}
+
+async function loadKnowledge() {
+  const filename = document.getElementById("knowledge-select").value;
+  if (!filename) return;
+  const resp = await fetch("/admin/api/knowledge/" + encodeURIComponent(filename), { headers: authHeader() });
+  const data = await resp.json();
+  document.getElementById("knowledge-text").value = data.text || "";
+  document.getElementById("knowledge-status").textContent = "";
+}
+
+async function saveKnowledge() {
+  const filename = document.getElementById("knowledge-select").value;
+  const text = document.getElementById("knowledge-text").value;
+  const status = document.getElementById("knowledge-status");
+  status.textContent = "Saving and re-ingesting...";
+  status.className = "status";
+  try {
+    const resp = await fetch("/admin/api/knowledge/" + encodeURIComponent(filename), {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    status.textContent = `Saved ✓ (${data.ingested_chunks} chunks updated)`;
+    status.className = "status ok";
+  } catch (e) {
+    status.textContent = "Failed to save: " + e.message;
+    status.className = "status err";
+  }
+}
+
+document.getElementById("login-pass").addEventListener("keydown", e => {
+  if (e.key === "Enter") login();
+});
+</script>
+</body>
+</html>

@@ -10,11 +10,13 @@ import asyncio
 import logging
 import pathlib
 
-from . import ingest, store
+from . import ingest, store, admin_settings
 
 logger = logging.getLogger("autoseed")
 
-KNOWLEDGE_DIR = pathlib.Path(__file__).parent.parent / "knowledge"
+# Knowledge shipped in the repo — used only to bootstrap the persistent
+# admin dir the first time the app runs on a fresh disk.
+REPO_KNOWLEDGE_DIR = pathlib.Path(__file__).parent.parent / "knowledge"
 
 WEBSITE_URLS = [
     "https://sugamaze.ca/about-us/",
@@ -47,7 +49,13 @@ async def reseed_if_empty(tenant_id: str):
     logger.info(f"[autoseed] rebuilding tenant '{tenant_id}' from scratch in background")
     store.reset_collection(tenant_id)
 
-    for md_file in sorted(KNOWLEDGE_DIR.glob("*.md")):
+    # Bootstrap the persistent admin knowledge dir from the repo's shipped
+    # files on first run only — after that, admin-panel edits are the source
+    # of truth and survive redeploys (unlike the repo copy, which resets on
+    # every deploy).
+    admin_settings.seed_knowledge_from_repo(REPO_KNOWLEDGE_DIR)
+
+    for md_file in sorted(admin_settings.KNOWLEDGE_DIR.glob("*.md")):
         try:
             text = md_file.read_text(encoding="utf-8")
             if md_file.name == "faq.md":

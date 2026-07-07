@@ -15,12 +15,13 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-from . import autoseed, ingest, notify, rag, state, store, whatsapp
+from . import admin, autoseed, ingest, notify, rag, state, store, whatsapp
 from .config import get_settings
 from .schemas import ChatRequest, IngestUrlRequest, IngestTextRequest
 
 app = FastAPI(title="GroundedBot", version="0.1.0")
 _settings = get_settings()
+app.include_router(admin.router)
 
 # Open CORS for local testing. TIGHTEN to the client's domain before production.
 app.add_middleware(
@@ -166,7 +167,7 @@ async def whatsapp_incoming(request: Request):
             whatsapp.send_message(from_number, "How may I help you further?")
         elif button_id == "idle_no":
             state.end_conversation(from_number)
-            whatsapp.send_message(from_number, rag.CLOSING_LINE)
+            whatsapp.send_message(from_number, rag.CLOSING_LINE())
         return {"ok": True}
 
     list_reply = whatsapp.extract_list_reply(payload)
@@ -175,17 +176,17 @@ async def whatsapp_incoming(request: Request):
         state.touch(from_number)
         if row_id == "opt_order":
             notify.notify_escalation(from_number, "Customer wants to place a custom order.")
-            whatsapp.send_message(from_number, rag.ORDER_TEXT)
+            whatsapp.send_message(from_number, rag.ORDER_TEXT())
         elif row_id == "opt_menu":
             result = rag.answer(_settings.default_tenant_id, "What's on your menu?", customer_phone=from_number)
             whatsapp.send_message(from_number, result["answer"])
         elif row_id == "opt_hours":
-            whatsapp.send_message(from_number, rag.HOURS_TEXT)
+            whatsapp.send_message(from_number, rag.HOURS_TEXT())
         elif row_id == "opt_address":
-            whatsapp.send_message(from_number, rag.LOCATION_TEXT)
+            whatsapp.send_message(from_number, rag.LOCATION_TEXT())
         elif row_id == "opt_team":
             notify.notify_escalation(from_number, "Customer asked to talk to the team directly.")
-            whatsapp.send_message(from_number, rag.TEAM_ESCALATION_LINE)
+            whatsapp.send_message(from_number, rag.TEAM_ESCALATION_LINE())
         elif row_id == "opt_other":
             whatsapp.send_message(from_number, "Sure! Go ahead and ask your question 😊")
         return {"ok": True}
