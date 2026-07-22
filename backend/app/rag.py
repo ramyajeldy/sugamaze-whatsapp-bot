@@ -14,7 +14,7 @@ worth showing clients (and putting on your resume).
 from anthropic import Anthropic
 
 from .config import get_settings
-from . import store, notify, admin_settings
+from . import store, notify, admin_settings, usage
 
 _settings = get_settings()
 _client = Anthropic(api_key=_settings.anthropic_api_key)
@@ -305,6 +305,7 @@ def answer(tenant_id, question, customer_phone: str = None, history: list = None
         messages=messages,
     )
     text = "".join(b.text for b in msg.content if b.type == "text").strip()
+    usage.record_claude_call(msg.usage.input_tokens, msg.usage.output_tokens)
 
     # If Claude returned the escalation message, notify the shop owner
     if text.startswith("I don't have that information") and customer_phone:

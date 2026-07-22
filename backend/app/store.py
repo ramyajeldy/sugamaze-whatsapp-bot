@@ -11,6 +11,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 from .config import get_settings
+from . import usage
 
 _settings = get_settings()
 _client = chromadb.PersistentClient(path=_settings.chroma_dir)
@@ -38,6 +39,7 @@ def add_chunks(tenant_id, ids, documents, metadatas):
 
 def query(tenant_id, text, top_k):
     col = _collection(tenant_id)
+    usage.record_voyage_call()  # one embedding call per customer question
     res = col.query(
         query_texts=[text],
         n_results=top_k,

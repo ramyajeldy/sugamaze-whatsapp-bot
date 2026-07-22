@@ -67,6 +67,21 @@
   }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .status { font-size: 13px; margin-left: 4px; }
+  .usage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .usage-tile {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .usage-tile .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .usage-tile .value { font-size: 20px; font-weight: 700; color: var(--pink-dark); }
+  .usage-tile.total .value { color: var(--text); }
   .status.ok { color: #2c7a4b; }
   .status.err { color: #c23e3e; }
   select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; }
@@ -93,6 +108,12 @@
 <div id="app" class="wrap">
   <h1>🎂 Sugamaze Bot Admin</h1>
   <div class="sub">Update store details, canned messages, and knowledge content — changes take effect immediately, no redeploy needed.</div>
+
+  <div class="card">
+    <h2>Usage &amp; Estimated Cost — This Month</h2>
+    <div class="hint">Estimates only, not an exact bill — check console.anthropic.com and voyageai.com for real billing. Hosting is a fixed monthly cost separate from usage.</div>
+    <div id="usage-summary" class="usage-grid"></div>
+  </div>
 
   <div class="card">
     <h2>Store Messages</h2>
@@ -165,9 +186,25 @@ async function login() {
     const data = await resp.json();
     fillMessages(data);
     loadKnowledgeList();
+    loadUsage();
   } else {
     document.getElementById("login-status").textContent = "Invalid username or password.";
   }
+}
+
+async function loadUsage() {
+  const resp = await fetch("/admin/api/usage", { headers: authHeader() });
+  const u = await resp.json();
+  const tiles = [
+    ["AI questions answered", u.claude_calls],
+    ["Est. AI cost", "$" + u.estimated_claude_cost_usd],
+    ["Est. embedding cost", "$" + u.estimated_voyage_cost_usd],
+    ["Hosting (fixed)", "$" + u.render_fixed_cost_usd],
+    ["Est. total this month", "$" + u.estimated_total_cost_usd, true],
+  ];
+  document.getElementById("usage-summary").innerHTML = tiles.map(([label, value, isTotal]) =>
+    `<div class="usage-tile${isTotal ? " total" : ""}"><div class="label">${label}</div><div class="value">${value}</div></div>`
+  ).join("");
 }
 
 function fillMessages(data) {

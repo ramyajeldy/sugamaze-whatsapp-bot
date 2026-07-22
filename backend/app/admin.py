@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
-from . import admin_settings, ingest, store
+from . import admin_settings, ingest, store, usage
 from .config import get_settings
 
 router = APIRouter()
@@ -52,6 +52,11 @@ def admin_page(_: str = Depends(require_admin)):
     from pathlib import Path
     html_path = Path(__file__).parent.parent / "static" / "admin.html"
     return FileResponse(html_path)
+
+
+@router.get("/admin/api/usage")
+def get_usage(_: str = Depends(require_admin)):
+    return usage.get_current_month_usage()
 
 
 @router.get("/admin/api/messages")
