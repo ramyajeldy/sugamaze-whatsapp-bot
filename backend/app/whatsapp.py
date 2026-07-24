@@ -101,7 +101,14 @@ def send_message(to: str, text: str):
         "text": {"body": text},
     }
     r = httpx.post(url, json=payload, headers=headers, timeout=20)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except httpx.HTTPStatusError:
+        # Graph API error bodies (e.g. "recipient not in allowed list",
+        # invalid token, wrong phone number ID) are in the response body,
+        # not the generic status message — log it so failures are diagnosable.
+        print(f"[WHATSAPP SEND ERROR] {r.status_code}: {r.text}")
+        raise
     return r.json()
 
 
