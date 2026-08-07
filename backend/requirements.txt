@@ -8,3 +8,4 @@ trafilatura
 python-multipart
 pydantic
 httpx
+pyyaml

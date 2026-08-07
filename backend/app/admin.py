@@ -1,9 +1,10 @@
 """
-Admin panel: lets the shop owner update store details, canned messages, and
-knowledge-base content without touching code or waiting for a deploy.
+Admin panel: lets a business owner update canned messages and knowledge-base
+content without touching code or waiting for a deploy.
 
-Auth is a single static username/password (HTTP Basic) — good enough for a
-one-owner shop, not meant to scale to multiple admin accounts.
+Auth is a single static username/password (HTTP Basic) covering all tenants —
+this is the operator's ("white-glove") console, not per-client logins. Add
+per-tenant accounts before handing the URL directly to individual clients.
 """
 import secrets
 
@@ -12,7 +13,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
-from . import admin_settings, ingest, store, usage
+from . import admin_settings, ingest, store, tenants, usage
 from .config import get_settings
 
 router = APIRouter()
@@ -32,15 +33,19 @@ def require_admin(credentials: HTTPBasicCredentials = Depends(_security)):
     return credentials.username
 
 
+def require_tenant(tenant_id: str):
+    try:
+        return tenants.get_tenant(tenant_id)
+    except KeyError:
+        raise HTTPException(404, f"Unknown tenant: {tenant_id}")
+
+
 class MessagesUpdate(BaseModel):
-    hours_text: str | None = None
-    location_text: str | None = None
-    order_text: str | None = None
-    allergy_text: str | None = None
-    closing_line: str | None = None
-    team_escalation_line: str | None = None
-    menu_text: str | None = None
-    flavours_text: str | None = None
+    # Canned-message keys are tenant-defined (a bakery has order_text /
+    # allergy_text; an enrichment center has pricing_text / enrollment_text),
+    # so this is an open map rather than a fixed schema. Unknown keys are
+    # rejected below against the tenant's own default_messages.
+    messages: dict[str, str]
 
 
 class KnowledgeUpdate(BaseModel):
@@ -54,49 +59,71 @@ def admin_page(_: str = Depends(require_admin)):
     return FileResponse(html_path)
 
 
-@router.get("/admin/api/usage")
-def get_usage(_: str = Depends(require_admin)):
-    return usage.get_current_month_usage()
+@router.get("/admin/api/tenants")
+def list_tenants(_: str = Depends(require_admin)):
+    return {
+        "tenants": [
+            {"tenant_id": t.tenant_id, "business_name": t.business_name, "vertical": t.vertical}
+            for t in tenants.all_tenants()
+        ]
+    }
 
 
-@router.get("/admin/api/messages")
-def get_messages(_: str = Depends(require_admin)):
-    return admin_settings.get_messages()
+@router.get("/admin/api/{tenant_id}/usage")
+def get_usage(tenant_id: str, _: str = Depends(require_admin)):
+    require_tenant(tenant_id)
+    return usage.get_current_month_usage(tenant_id)
 
 
-@router.put("/admin/api/messages")
-def update_messages(body: MessagesUpdate, _: str = Depends(require_admin)):
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
-    admin_settings.save_messages(updates)
-    return admin_settings.get_messages()
+@router.get("/admin/api/{tenant_id}/messages")
+def get_messages(tenant_id: str, _: str = Depends(require_admin)):
+    tenant = require_tenant(tenant_id)
+    return {
+        "messages": admin_settings.get_messages(tenant_id),
+        "labels": tenant.message_labels,
+        "order": list(tenant.default_messages),
+    }
 
 
-@router.get("/admin/api/knowledge")
-def list_knowledge(_: str = Depends(require_admin)):
-    return {"files": admin_settings.list_knowledge_files()}
+@router.put("/admin/api/{tenant_id}/messages")
+def update_messages(tenant_id: str, body: MessagesUpdate, _: str = Depends(require_admin)):
+    tenant = require_tenant(tenant_id)
+    known = set(tenant.default_messages)
+    unknown = set(body.messages) - known
+    if unknown:
+        raise HTTPException(400, f"Unknown message key(s) for {tenant_id}: {sorted(unknown)}")
+    admin_settings.save_messages(tenant_id, body.messages)
+    return admin_settings.get_messages(tenant_id)
 
 
-@router.get("/admin/api/knowledge/{filename}")
-def get_knowledge(filename: str, _: str = Depends(require_admin)):
+@router.get("/admin/api/{tenant_id}/knowledge")
+def list_knowledge(tenant_id: str, _: str = Depends(require_admin)):
+    require_tenant(tenant_id)
+    return {"files": admin_settings.list_knowledge_files(tenant_id)}
+
+
+@router.get("/admin/api/{tenant_id}/knowledge/{filename}")
+def get_knowledge(tenant_id: str, filename: str, _: str = Depends(require_admin)):
+    require_tenant(tenant_id)
     try:
-        return {"filename": filename, "text": admin_settings.get_knowledge_text(filename)}
+        return {"filename": filename, "text": admin_settings.get_knowledge_text(tenant_id, filename)}
     except FileNotFoundError:
         raise HTTPException(404, "Knowledge file not found")
     except ValueError as e:
         raise HTTPException(400, str(e))
 
 
-@router.put("/admin/api/knowledge/{filename}")
-def update_knowledge(filename: str, body: KnowledgeUpdate, _: str = Depends(require_admin)):
+@router.put("/admin/api/{tenant_id}/knowledge/{filename}")
+def update_knowledge(tenant_id: str, filename: str, body: KnowledgeUpdate, _: str = Depends(require_admin)):
     """Save the edited file, then re-ingest it into the live vector store —
     old chunks from the previous version are removed first so nothing stale
     lingers alongside the update."""
+    require_tenant(tenant_id)
     try:
-        admin_settings.save_knowledge_text(filename, body.text)
+        admin_settings.save_knowledge_text(tenant_id, filename, body.text)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-    tenant_id = _settings.default_tenant_id
     store.delete_by_source(tenant_id, filename)
     try:
         if filename == "faq.md":

@@ -1,156 +1,139 @@
 """
 JSON-backed store for admin-editable content: canned WhatsApp messages and
-knowledge-base files. Lives next to the vector store on the persistent disk
-(same volume Render mounts for CHROMA_DIR) so edits made through the admin
-panel survive redeploys — unlike files shipped in the git repo, which get
-reset every time Render redeploys from a new commit.
+knowledge-base files, scoped per tenant. Lives next to the vector store on
+the persistent disk (same volume Render mounts for CHROMA_DIR) so edits made
+through the admin panel survive redeploys — unlike files shipped in the git
+repo, which get reset every time Render redeploys from a new commit.
 """
 import json
 import pathlib
 
 from .config import get_settings
+from . import tenants
 
 _settings = get_settings()
 
-ADMIN_DATA_DIR = pathlib.Path(_settings.chroma_dir).parent / "admin_data"
-MESSAGES_FILE = ADMIN_DATA_DIR / "messages.json"
-KNOWLEDGE_DIR = ADMIN_DATA_DIR / "knowledge"
-
-# Shipped defaults — used the first time the admin panel runs, and as a
-# fallback for any key that's never been edited.
-DEFAULT_MESSAGES = {
-    "hours_text": (
-        "🕐 *Monday:* 11:00 am – 8:00 pm\n"
-        "❌ *Tuesday:* Closed\n"
-        "🕐 *Wednesday – Friday:* 11:00 am – 8:00 pm\n"
-        "🕐 *Saturday & Sunday:* 10:00 am – 9:00 pm"
-    ),
-    "location_text": "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍",
-    "order_text": (
-        "I've let our team know you'd like to place a custom order 🎂\n\n"
-        "Please leave your name, order details, date required, and upload any "
-        "design ideas, and my team will get back to you with pricing and order "
-        "confirmation during our business hours 😊\n\n"
-        "You can also reach us directly at:\n"
-        "📞 *+1 (905) 655-7878*\n"
-        "✉️ *info@sugamaze.ca*\n\n"
-        "Thank you for choosing Sugamaze 💕"
-    ),
-    "allergy_text": (
-        "For allergy and dietary questions, please contact our team directly "
-        "for a safe, accurate answer:\n\n"
-        "📞 *+1 (905) 655-7878*\n"
-        "✉️ *info@sugamaze.ca*\n\n"
-        "Your safety is our priority — the team will be happy to help! 😊"
-    ),
-    "closing_line": "Thank you for contacting Sugamaze! Hope to see you around soon 🙂",
-    "team_escalation_line": "A team member will reach out to you soon. Thank you for your patience.",
-    # Menu and flavours are answered from this fixed text, not retrieval —
-    # a "menu" question needs the FULL list every time, and vector search
-    # over 20+ website pages can't reliably guarantee completeness.
-    "menu_text": (
-        "✨ *Sugamaze Menu* ✨\n\n"
-        "*Custom Cakes* (all 100% eggless):\n"
-        "• Wedding cakes (tiered)\n"
-        "• Pre-wedding cakes\n"
-        "• Birthday cakes (custom designs)\n"
-        "• Anniversary cakes\n"
-        "• Gender reveal cakes\n"
-        "• Photo cakes (edible printed images)\n"
-        "• Graduation cakes\n"
-        "• Valentine cakes\n"
-        "• Theme-based cakes\n"
-        "• Sweet 16 cakes\n\n"
-        "*Ready-to-Eat Cakes:*\n"
-        "• Ready-to-go cakes (fresh, great for last-minute celebrations!)\n\n"
-        "*Individual Treats:*\n"
-        "• Dessert cups — $5.00\n"
-        "• Cupcakes\n"
-        "• Cake pops\n"
-        "• Macaroons — $12.00\n"
-        "• Patties/Puffs\n\n"
-        "*Sizes:* 6\", 8\", 10\", 12\" (round or square), plus Quarter/Half/Full sheet cakes.\n\n"
-        "💕 Every cake is handcrafted with love! Custom cakes are quoted based on size, design & flavour "
-        "(ask me about flavours too!).\n\n"
-        "Ready to place your order? Call *+1 (905) 655-7878* or email *info@sugamaze.ca* 🎂✨"
-    ),
-    "flavours_text": (
-        "🍰 *Our Flavours:*\n"
-        "• Strawberry\n"
-        "• Pineapple\n"
-        "• Chocolate\n"
-        "• Butterscotch\n"
-        "• Black Forest\n"
-        "• Rasmalai\n"
-        "• Gulab Jamun\n\n"
-        "All cakes are 100% eggless. Certain flavour combinations may not be available for every cake type — "
-        "just ask when placing your order! 😊"
-    ),
-}
+ADMIN_DATA_ROOT = pathlib.Path(_settings.chroma_dir).parent / "admin_data"
 
 
-def _ensure_dirs():
-    ADMIN_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+def _tenant_dir(tenant_id: str) -> pathlib.Path:
+    return ADMIN_DATA_ROOT / tenant_id
 
 
-def get_messages() -> dict:
-    _ensure_dirs()
-    if MESSAGES_FILE.exists():
+def _messages_file(tenant_id: str) -> pathlib.Path:
+    return _tenant_dir(tenant_id) / "messages.json"
+
+
+def _knowledge_dir(tenant_id: str) -> pathlib.Path:
+    return _tenant_dir(tenant_id) / "knowledge"
+
+
+def _default_messages(tenant_id: str) -> dict:
+    return dict(tenants.get_tenant(tenant_id).default_messages)
+
+
+def _ensure_dirs(tenant_id: str):
+    _tenant_dir(tenant_id).mkdir(parents=True, exist_ok=True)
+    _knowledge_dir(tenant_id).mkdir(parents=True, exist_ok=True)
+
+
+def migrate_legacy_admin_data(legacy_tenant_id: str = "sugamaze"):
+    """One-time move of the pre-multi-tenant layout (admin_data/messages.json,
+    admin_data/knowledge/*.md) into admin_data/<legacy_tenant_id>/. Safe to
+    call on every startup — no-ops once the legacy files are gone. Protects
+    Sugamaze's real persisted content on the production disk during the
+    multi-tenant cutover."""
+    legacy_messages = ADMIN_DATA_ROOT / "messages.json"
+    legacy_knowledge = ADMIN_DATA_ROOT / "knowledge"
+    new_messages = _messages_file(legacy_tenant_id)
+    new_knowledge = _knowledge_dir(legacy_tenant_id)
+
+    if legacy_messages.exists() and not new_messages.exists():
+        _ensure_dirs(legacy_tenant_id)
+        new_messages.write_bytes(legacy_messages.read_bytes())
+        legacy_messages.unlink()
+
+    if legacy_knowledge.exists() and legacy_knowledge.is_dir():
+        _ensure_dirs(legacy_tenant_id)
+        for md_file in legacy_knowledge.glob("*.md"):
+            dest = new_knowledge / md_file.name
+            if not dest.exists():
+                dest.write_bytes(md_file.read_bytes())
+            md_file.unlink()
         try:
-            saved = json.loads(MESSAGES_FILE.read_text(encoding="utf-8"))
-            return {**DEFAULT_MESSAGES, **saved}
+            legacy_knowledge.rmdir()
+        except OSError:
+            pass  # not empty (unexpected extra files) — leave it, harmless
+
+
+def get_messages(tenant_id: str) -> dict:
+    _ensure_dirs(tenant_id)
+    defaults = _default_messages(tenant_id)
+    messages_file = _messages_file(tenant_id)
+    if messages_file.exists():
+        try:
+            saved = json.loads(messages_file.read_text(encoding="utf-8"))
+            return {**defaults, **saved}
         except Exception:
             pass
-    return dict(DEFAULT_MESSAGES)
+    return defaults
 
 
-def get_message(key: str) -> str:
-    return get_messages().get(key, DEFAULT_MESSAGES.get(key, ""))
+def get_message(tenant_id: str, key: str) -> str:
+    return get_messages(tenant_id).get(key, _default_messages(tenant_id).get(key, ""))
 
 
-def save_messages(updates: dict):
-    """Merge `updates` (only known keys) into the persisted settings."""
-    current = get_messages()
-    current.update({k: v for k, v in updates.items() if k in DEFAULT_MESSAGES})
-    _ensure_dirs()
-    MESSAGES_FILE.write_text(json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8")
+def save_messages(tenant_id: str, updates: dict):
+    """Merge `updates` into the persisted settings for this tenant. Any key
+    is accepted — canned-message keys are tenant-defined (a bakery has
+    order_text/allergy_text, an enrichment center has pricing_text/
+    enrollment_text), not a fixed schema."""
+    current = get_messages(tenant_id)
+    current.update(updates)
+    _ensure_dirs(tenant_id)
+    _messages_file(tenant_id).write_text(
+        json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
-def seed_knowledge_from_repo(repo_knowledge_dir: pathlib.Path):
-    """One-time bootstrap: copy the repo's shipped knowledge/*.md into the
-    persistent admin dir if a file with that name doesn't already live there.
-    After this, the admin dir — not the repo — is the source of truth."""
-    _ensure_dirs()
+def seed_knowledge_from_repo(tenant_id: str, repo_knowledge_dir: pathlib.Path):
+    """One-time bootstrap: copy a tenant's shipped knowledge/*.md into the
+    persistent admin dir if a file with that name doesn't already live
+    there. After this, the admin dir — not the repo — is the source of
+    truth."""
+    if not repo_knowledge_dir.exists():
+        return
+    _ensure_dirs(tenant_id)
+    dest_dir = _knowledge_dir(tenant_id)
     for md_file in repo_knowledge_dir.glob("*.md"):
-        dest = KNOWLEDGE_DIR / md_file.name
+        dest = dest_dir / md_file.name
         if not dest.exists():
             dest.write_text(md_file.read_text(encoding="utf-8"), encoding="utf-8")
 
 
-def list_knowledge_files() -> list[str]:
-    _ensure_dirs()
-    return sorted(p.name for p in KNOWLEDGE_DIR.glob("*.md"))
+def list_knowledge_files(tenant_id: str) -> list[str]:
+    _ensure_dirs(tenant_id)
+    return sorted(p.name for p in _knowledge_dir(tenant_id).glob("*.md"))
 
 
-def _safe_path(filename: str) -> pathlib.Path:
+def _safe_path(tenant_id: str, filename: str) -> pathlib.Path:
     """Reject anything that isn't a bare '<name>.md' — no path separators,
     no traversal, no hidden files."""
     name = pathlib.PurePosixPath(filename).name
     if name != filename or not name.endswith(".md") or name in {".md", ""}:
         raise ValueError(f"invalid knowledge filename: {filename!r}")
-    return KNOWLEDGE_DIR / name
+    return _knowledge_dir(tenant_id) / name
 
 
-def get_knowledge_text(filename: str) -> str:
-    _ensure_dirs()
-    path = _safe_path(filename)
+def get_knowledge_text(tenant_id: str, filename: str) -> str:
+    _ensure_dirs(tenant_id)
+    path = _safe_path(tenant_id, filename)
     if not path.exists():
         raise FileNotFoundError(filename)
     return path.read_text(encoding="utf-8")
 
 
-def save_knowledge_text(filename: str, text: str):
-    _ensure_dirs()
-    path = _safe_path(filename)
+def save_knowledge_text(tenant_id: str, filename: str, text: str):
+    _ensure_dirs(tenant_id)
+    path = _safe_path(tenant_id, filename)
     path.write_text(text, encoding="utf-8")

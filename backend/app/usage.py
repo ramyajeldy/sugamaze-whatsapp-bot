@@ -1,19 +1,17 @@
 """
-Lightweight, persistent usage tracking so the shop owner can see roughly
-what the bot is costing without needing to check Anthropic/Voyage's own
-billing consoles. Counts are approximate estimates, not an invoice — always
-defer to the actual provider dashboards for exact billing.
+Lightweight, persistent usage tracking so each tenant can see roughly what
+their bot is costing without needing to check Anthropic/Voyage's own billing
+consoles. Counts are approximate estimates, not an invoice — always defer to
+the actual provider dashboards for exact billing.
 
-Persisted on the same disk as the vector store / admin settings, keyed by
-calendar month, so figures reset naturally each month and survive restarts.
+Persisted per tenant on the same disk as the vector store / admin settings,
+keyed by calendar month, so figures reset naturally each month and survive
+restarts.
 """
 import json
-import pathlib
 from datetime import datetime, timezone
 
 from . import admin_settings
-
-USAGE_FILE = admin_settings.ADMIN_DATA_DIR / "usage.json"
 
 # Rough, approximate per-token pricing (USD) — update if Anthropic/Voyage
 # pricing changes. These produce an ESTIMATE for the admin dashboard, not an
@@ -22,30 +20,33 @@ CLAUDE_INPUT_COST_PER_MTOK = 3.0
 CLAUDE_OUTPUT_COST_PER_MTOK = 15.0
 VOYAGE_COST_PER_MTOK = 0.02
 
+# Hosting is one shared instance across all tenants; this is the per-tenant
+# hosting line item a reseller passes on, not the total infra bill.
 RENDER_FIXED_MONTHLY_USD = 7.25  # Starter instance + 1GB persistent disk
+
+
+def _usage_file(tenant_id: str):
+    return admin_settings.ADMIN_DATA_ROOT / tenant_id / "usage.json"
 
 
 def _month_key() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-def _ensure_dir():
-    admin_settings.ADMIN_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _load() -> dict:
-    _ensure_dir()
-    if USAGE_FILE.exists():
+def _load(tenant_id: str) -> dict:
+    path = _usage_file(tenant_id)
+    if path.exists():
         try:
-            return json.loads(USAGE_FILE.read_text(encoding="utf-8"))
+            return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             pass
     return {}
 
 
-def _save(data: dict):
-    _ensure_dir()
-    USAGE_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+def _save(tenant_id: str, data: dict):
+    path = _usage_file(tenant_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 def _empty_month() -> dict:
@@ -57,26 +58,24 @@ def _empty_month() -> dict:
     }
 
 
-def record_claude_call(input_tokens: int, output_tokens: int):
-    data = _load()
-    month = _month_key()
-    m = data.setdefault(month, _empty_month())
+def record_claude_call(tenant_id: str, input_tokens: int, output_tokens: int):
+    data = _load(tenant_id)
+    m = data.setdefault(_month_key(), _empty_month())
     m["claude_calls"] += 1
     m["claude_input_tokens"] += input_tokens
     m["claude_output_tokens"] += output_tokens
-    _save(data)
+    _save(tenant_id, data)
 
 
-def record_voyage_call(n: int = 1):
-    data = _load()
-    month = _month_key()
-    m = data.setdefault(month, _empty_month())
+def record_voyage_call(tenant_id: str, n: int = 1):
+    data = _load(tenant_id)
+    m = data.setdefault(_month_key(), _empty_month())
     m["voyage_calls"] += n
-    _save(data)
+    _save(tenant_id, data)
 
 
-def get_current_month_usage() -> dict:
-    data = _load()
+def get_current_month_usage(tenant_id: str) -> dict:
+    data = _load(tenant_id)
     month = _month_key()
     m = data.get(month, _empty_month())
 
@@ -91,6 +90,7 @@ def get_current_month_usage() -> dict:
     voyage_cost = approx_voyage_tokens / 1_000_000 * VOYAGE_COST_PER_MTOK
 
     return {
+        "tenant_id": tenant_id,
         "month": month,
         "claude_calls": m["claude_calls"],
         "claude_input_tokens": m["claude_input_tokens"],

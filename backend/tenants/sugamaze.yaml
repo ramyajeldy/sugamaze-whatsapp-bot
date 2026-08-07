@@ -1,0 +1,244 @@
+# Tenant #1 — migrated to reproduce pre-refactor behavior exactly.
+# whatsapp_phone_number_id below is the real, non-secret Meta identifier;
+# the access token lives in the WHATSAPP_TOKEN__SUGAMAZE env var, not here.
+
+tenant_id: sugamaze
+business_name: Sugamaze
+vertical: bakery
+whatsapp_phone_number_id: "1181092221751477"
+
+escalation_email: info@sugamaze.ca
+escalation_whatsapp_to: "16474829662"
+
+identity_block: |
+  You are the official WhatsApp assistant for Sugamaze, a storefront cake
+  shop in Whitby, Ontario. You speak ON BEHALF of the business to real
+  customers. Every word you send is the customer's experience of Sugamaze —
+  treat it that way.
+
+topic_guardrail: |
+  You are a cake shop assistant ONLY. If a customer brings up topics
+  unrelated to Sugamaze and its products — including but not limited to
+  politics, religion, sex/relationships, violence, illegal activity, or any
+  other controversial or sensitive topic — do NOT engage with the topic at
+  all, even briefly or jokingly. Politely redirect, once, back to how you
+  can help with their cake order, e.g.:
+  "I'm just here to help with all things Sugamaze cakes! 🎂 Is there something I can help you find or order today?"
+  Do not explain why you won't engage, don't lecture, don't moralize —
+  just redirect warmly and move on.
+
+contact_phone: "+1 (905) 655-7878"
+contact_email: "info@sugamaze.ca"
+
+escalation_text: >-
+  I don't have that information, but I've let the team know — a team
+  member will get back to you on this. Thank you for your patience!
+
+greetings: ["hi", "hello", "hey", "hello!", "hi!", "hey!"]
+closing_phrases: ["thanks", "thank you", "thanks!", "bye", "goodbye", "bye!"]
+
+# Deterministic shortcuts, checked in order, before falling through to
+# vector retrieval. First match wins — order matches the original code.
+shortcuts:
+  - keywords:
+      - "i want to place an order"
+      - "i want to order"
+      - "place an order"
+      - "i'd like to order"
+      - "id like to order"
+      - "i would like to order"
+      - "place order"
+      - "i want to order a cake"
+      - "how do i order"
+      - "how can i order"
+      - "i want to place order"
+      - "want to order"
+      - "make an order"
+      - "want to place an order"
+      - "ordering a cake"
+      - "order a cake"
+    response_key: order_text
+    notify: priority_lead
+    notify_label: "🎂 NEW CUSTOM ORDER — customer wants to place an order. Please reach out to discuss details, design, and pricing."
+
+  - keywords:
+      - "vegan"
+      - "gluten"
+      - "dairy"
+      - "nuts"
+      - "nut-free"
+      - "lactose"
+      - "celiac"
+      - "intolerant"
+      - "sensitivity"
+      - "allerg"
+    response_key: allergy_text
+    notify: escalation
+    grounded: false
+
+  - keywords:
+      - "located"
+      - "location"
+      - "address"
+      - "where are you"
+      - "where is sugamaze"
+      - "where is your store"
+      - "where is your shop"
+      - "where can i find you"
+      - "find your store"
+    response_key: location_text
+
+  - keywords: ["hours", "open", "close", "closing", "opening"]
+    response_key: hours_text
+
+  - keywords:
+      - "menu"
+      - "what do you have"
+      - "what do you sell"
+      - "what cakes do you make"
+      - "what do you offer"
+    response_key: menu_text
+
+  - keywords: ["flavor", "flavour", "flavors", "flavours"]
+    response_key: flavours_text
+
+welcome_menu:
+  header_text: "Thank you for contacting Sugamaze! 🙂"
+  body_text: "Tell me what I can help you with today"
+  button_text: "Choose an option"
+  rows:
+    - id: opt_order
+      title: "Place a custom order"
+      action:
+        type: notify_and_canned
+        notify: priority_lead
+        notify_label: "🎂 NEW CUSTOM ORDER — customer wants to place an order. Please reach out to discuss details, design, and pricing."
+        key: order_text
+    - id: opt_menu
+      title: "View our menu"
+      action:
+        type: rag_query
+        query: "What's on your menu?"
+    - id: opt_hours
+      title: "Store hours"
+      action: {type: canned, key: hours_text}
+    - id: opt_address
+      title: "Store address"
+      action: {type: canned, key: location_text}
+    - id: opt_team
+      title: "Talk to our team"
+      action:
+        type: notify_and_canned
+        notify: escalation
+        reason: "Customer asked to talk to the team directly."
+        key: team_escalation_line
+    - id: opt_other
+      title: "Others"
+      action:
+        type: freeform_prompt
+        text: "Sure! Go ahead and ask your question 😊"
+
+media_received_text: "Got it! Your design has been shared with our team 💕"
+
+message_labels:
+  greeting_reply: "Greeting reply (plain-text welcome)"
+  hours_text: "Store hours"
+  location_text: "Store location"
+  menu_text: "Full menu (sent whenever a customer asks about the menu)"
+  flavours_text: "Flavours (sent whenever a customer asks about flavours)"
+  order_text: "Order / custom order message"
+  allergy_text: "Allergy / dietary escalation message"
+  closing_line: "Closing line (sent when a chat ends)"
+  team_escalation_line: '"Talk to our team" message'
+
+default_messages:
+  greeting_reply: "Hi there! 👋 Welcome to Sugamaze. How can I help you with our cakes today?"
+  hours_text: |-
+    🕐 *Monday:* 11:00 am – 8:00 pm
+    ❌ *Tuesday:* Closed
+    🕐 *Wednesday – Friday:* 11:00 am – 8:00 pm
+    🕐 *Saturday & Sunday:* 10:00 am – 9:00 pm
+  location_text: "We're located at *30 St Thomas St, Whitby, ON L1M 1H1* (Durham Region, Ontario). 📍"
+  order_text: |-
+    I've let our team know you'd like to place a custom order 🎂
+
+    Please leave your name, order details, date required, and upload any design ideas, and my team will get back to you with pricing and order confirmation during our business hours 😊
+
+    You can also reach us directly at:
+    📞 *+1 (905) 655-7878*
+    ✉️ *info@sugamaze.ca*
+
+    Thank you for choosing Sugamaze 💕
+  allergy_text: |-
+    For allergy and dietary questions, please contact our team directly for a safe, accurate answer:
+
+    📞 *+1 (905) 655-7878*
+    ✉️ *info@sugamaze.ca*
+
+    Your safety is our priority — the team will be happy to help! 😊
+  closing_line: "Thank you for contacting Sugamaze! Hope to see you around soon 🙂"
+  team_escalation_line: "A team member will reach out to you soon. Thank you for your patience."
+  menu_text: |-
+    ✨ *Sugamaze Menu* ✨
+
+    *Custom Cakes* (all 100% eggless):
+    • Wedding cakes (tiered)
+    • Pre-wedding cakes
+    • Birthday cakes (custom designs)
+    • Anniversary cakes
+    • Gender reveal cakes
+    • Photo cakes (edible printed images)
+    • Graduation cakes
+    • Valentine cakes
+    • Theme-based cakes
+    • Sweet 16 cakes
+
+    *Ready-to-Eat Cakes:*
+    • Ready-to-go cakes (fresh, great for last-minute celebrations!)
+
+    *Individual Treats:*
+    • Dessert cups — $5.00
+    • Cupcakes
+    • Cake pops
+    • Macaroons — $12.00
+    • Patties/Puffs
+
+    *Sizes:* 6", 8", 10", 12" (round or square), plus Quarter/Half/Full sheet cakes.
+
+    💕 Every cake is handcrafted with love! Custom cakes are quoted based on size, design & flavour (ask me about flavours too!).
+
+    Ready to place your order? Call *+1 (905) 655-7878* or email *info@sugamaze.ca* 🎂✨
+  flavours_text: |-
+    🍰 *Our Flavours:*
+    • Strawberry
+    • Pineapple
+    • Chocolate
+    • Butterscotch
+    • Black Forest
+    • Rasmalai
+    • Gulab Jamun
+
+    All cakes are 100% eggless. Certain flavour combinations may not be available for every cake type — just ask when placing your order! 😊
+
+seed:
+  urls:
+    - "https://sugamaze.ca/about-us/"
+    - "https://sugamaze.ca/contact-us/"
+    - "https://sugamaze.ca/privacy-policy/"
+    - "https://sugamaze.ca/refund_returns/"
+    - "https://sugamaze.ca/custom-cake-builder/"
+    - "https://sugamaze.ca/dessert-cups/"
+    - "https://sugamaze.ca/cup-cakes/"
+    - "https://sugamaze.ca/patties-puffs/"
+    - "https://sugamaze.ca/cake-pops/"
+    - "https://sugamaze.ca/wedding-cakes/"
+    - "https://sugamaze.ca/birthday-cakes/"
+    - "https://sugamaze.ca/photo-cakes/"
+    - "https://sugamaze.ca/theme-based-cakes/"
+    - "https://sugamaze.ca/sweet-16-cakes/"
+    - "https://sugamaze.ca/gender-reveal/"
+    - "https://sugamaze.ca/all-cakes/"
+    - "https://sugamaze.ca/anniversary-cakes/"
+    - "https://sugamaze.ca/valentine-cakes/"
+    - "https://sugamaze.ca/ready-to-eat-cakes/"
+    - "https://sugamaze.ca/graduation-cakes/"

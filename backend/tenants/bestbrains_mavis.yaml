@@ -1,0 +1,215 @@
+# Tenant #2 — PROTOTYPE. Not yet authorized by Best Brains; this is a demo
+# to validate the concept before pitching. Do not point a real WhatsApp
+# number or their real staff's escalation contacts at this tenant until
+# they've agreed to a pilot.
+#
+# whatsapp_phone_number_id below is a placeholder that will never match a
+# real inbound webhook — replace with the real Meta phone_number_id (and set
+# WHATSAPP_TOKEN__BESTBRAINS_MAVIS) only once a number is actually provisioned.
+
+tenant_id: bestbrains_mavis
+business_name: "Best Brains Learning Center - Mavis (Mississauga)"
+vertical: education
+
+whatsapp_phone_number_id: "PENDING_NOT_PROVISIONED"
+
+# Placeholders — do not wire up real staff contacts until Best Brains has
+# agreed to a pilot.
+escalation_email: "prototype-owner@example.com"
+escalation_whatsapp_to: "10000000000"
+
+identity_block: |
+  You are the WhatsApp assistant for Best Brains Learning Center, Mavis
+  (Mississauga) location — an academic enrichment center for children ages
+  3 to 14 offering Math, English, Abacus, Coding, and more. You speak ON
+  BEHALF of the center to parents and prospective families. Every word you
+  send is a parent's experience of this center — treat it that way.
+
+topic_guardrail: |
+  You are a Best Brains Mavis assistant ONLY. If someone brings up topics
+  unrelated to the center's programs, enrollment, or policies — including
+  but not limited to politics, religion, unrelated schools/competitors,
+  violence, or any other controversial or sensitive topic — do NOT engage
+  with the topic at all, even briefly. Politely redirect, once, back to how
+  you can help with their child's learning, e.g.:
+  "I'm here to help with anything Best Brains Mavis — programs, pricing, schedule, or enrollment! What can I help you with today? 😊"
+  Do not explain why you won't engage, don't lecture, don't moralize — just
+  redirect warmly and move on.
+
+contact_phone: "647-325-0179"
+contact_email: "mavis@bestbrains.com"
+
+escalation_text: >-
+  I don't have that information, but I've let our team know — someone will
+  get back to you on this. Thank you for your patience!
+
+greetings: ["hi", "hello", "hey", "hello!", "hi!", "hey!"]
+closing_phrases: ["thanks", "thank you", "thanks!", "bye", "goodbye", "bye!"]
+
+shortcuts:
+  - keywords:
+      - "enroll"
+      - "enrol"
+      - "register"
+      - "registration"
+      - "sign up"
+      - "signup"
+      - "how do i join"
+      - "how can i join"
+      - "how do i start"
+      - "book an assessment"
+      - "book a consultation"
+    response_key: enrollment_text
+    notify: priority_lead
+    notify_label: "🎓 NEW ENROLLMENT INQUIRY — parent wants to enroll/register. Please reach out to confirm program fit and next steps."
+
+  - keywords:
+      - "price"
+      - "pricing"
+      - "cost"
+      - "fee"
+      - "fees"
+      - "how much"
+      - "tuition"
+    response_key: pricing_text
+
+  - keywords:
+      - "located"
+      - "location"
+      - "address"
+      - "where are you"
+      - "where is best brains"
+      - "where is your center"
+      - "where is your centre"
+      - "find your center"
+    response_key: location_text
+
+  - keywords:
+      - "hours"
+      - "schedule"
+      - "when are classes"
+      - "what time"
+      - "timing"
+      - "timings"
+    response_key: schedule_text
+
+  - keywords:
+      - "program"
+      - "programs"
+      - "subject"
+      - "subjects"
+      - "what do you offer"
+      - "what do you teach"
+      - "what courses"
+      - "what classes"
+    response_key: programs_text
+
+welcome_menu:
+  header_text: "Thanks for reaching out to Best Brains Mavis! 🙂"
+  body_text: "Tell me what I can help you with today"
+  button_text: "Choose an option"
+  rows:
+    - id: opt_programs
+      title: "Programs & pricing"
+      action: {type: canned, key: programs_text}
+    - id: opt_schedule
+      title: "Class schedule"
+      action: {type: canned, key: schedule_text}
+    - id: opt_location
+      title: "Our location"
+      action: {type: canned, key: location_text}
+    - id: opt_enroll
+      title: "Enroll my child"
+      action:
+        type: notify_and_canned
+        notify: priority_lead
+        notify_label: "🎓 NEW ENROLLMENT INQUIRY — parent wants to enroll/register. Please reach out to confirm program fit and next steps."
+        key: enrollment_text
+    - id: opt_team
+      title: "Talk to our team"
+      action:
+        type: notify_and_canned
+        notify: escalation
+        reason: "Parent asked to talk to the team directly."
+        key: team_escalation_line
+
+message_labels:
+  greeting_reply: "Greeting reply (plain-text welcome)"
+  programs_text: "Programs & subjects (sent when asked what's offered)"
+  pricing_text: "Pricing / fees"
+  schedule_text: "Class schedule / hours"
+  location_text: "Center location"
+  enrollment_text: "Enrollment / registration message"
+  closing_line: "Closing line (sent when a chat ends)"
+  team_escalation_line: '"Talk to our team" message'
+
+default_messages:
+  greeting_reply: "Hi there! 👋 Welcome to Best Brains Mavis. How can I help you with programs or enrollment today?"
+
+  programs_text: |-
+    ✨ *Best Brains Mavis — Programs* ✨
+
+    *Core Programs:*
+    • Math
+    • English
+    • Abacus
+    • Coding
+
+    *Additional Programs:*
+    • Public Speaking
+    • Creative Writing
+    • Science Lab
+
+    *Early Learning (younger children):*
+    • Baby Genius Math
+    • Baby Genius English
+    • Early Learner's Program
+
+    *Test Prep:*
+    • EQAO, NGAT, IB, IBT, SciTech preparation
+
+    *Seasonal:*
+    • Summer Camps (ages 3–14)
+    • Aftercare
+    • Homework Help
+
+    Programs are for children ages 3 to 14. Want pricing or to enroll? Just ask! 😊
+
+  pricing_text: |-
+    💰 *Best Brains Mavis — Monthly Pricing (per child)*
+
+    • 1 subject: *$159/month*
+    • 2 subjects: *$279/month*
+    • 3 subjects: *$329/month*
+    • 4 subjects: *$429/month*
+
+    For seasonal programs (camps, aftercare) or bundle questions, please contact us directly:
+    📞 *647-325-0179*
+    ✉️ *mavis@bestbrains.com*
+
+  schedule_text: |-
+    🕐 *Class Schedule*
+    Monday, Wednesday–Friday: *4:30 PM – 8:00 PM*
+    Saturday: *10:00 AM – 12:00 PM*
+    Tuesday & Sunday: Closed
+
+  location_text: "We're located at *720 Bristol Rd W, Unit #6, Mississauga, ON L5R 4A5*. 📍"
+
+  enrollment_text: |-
+    I've let our team know you're interested in enrolling 🎓
+
+    Please share your child's name, age, and the subject(s) you're interested in, and our team will follow up to confirm program fit and next steps.
+
+    You can also reach us directly at:
+    📞 *647-325-0179*
+    ✉️ *mavis@bestbrains.com*
+
+    Thank you for considering Best Brains Mavis!
+
+  closing_line: "Thanks for reaching out to Best Brains Mavis! Hope to see your child in class soon 🙂"
+
+  team_escalation_line: "A team member will reach out to you soon. Thank you for your patience."
+
+seed:
+  urls:
+    - "https://bestbrains.com/ca-en/mavis"

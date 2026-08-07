@@ -29,21 +29,22 @@ class Settings:
     chunk_size: int = int(os.environ.get("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.environ.get("CHUNK_OVERLAP", "120"))
 
-    # WhatsApp (Meta Cloud API)
-    whatsapp_token: str = os.environ.get("WHATSAPP_TOKEN", "")
-    whatsapp_phone_number_id: str = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+    # WhatsApp (Meta Cloud API). One Meta App and one webhook serve every
+    # tenant, so the verify token is process-wide; per-tenant phone number IDs
+    # live in backend/tenants/*.yaml and per-tenant access tokens come from
+    # WHATSAPP_TOKEN__<TENANT_ID_UPPER> env vars (see app/tenants.py).
     whatsapp_verify_token: str = os.environ.get("WHATSAPP_VERIFY_TOKEN", "")
-    # Single-shop deployment: every WhatsApp message maps to this tenant.
-    default_tenant_id: str = os.environ.get("DEFAULT_TENANT_ID", "sugamaze")
 
     # Idle check-in: nudge a customer who's gone quiet mid-conversation.
     idle_checkin_seconds: float = float(os.environ.get("IDLE_CHECKIN_SECONDS", "60"))
 
-    # Escalation notifications (alert shop when bot can't answer)
-    escalation_email: str = os.environ.get("ESCALATION_EMAIL", "info@sugamaze.ca")
-    escalation_whatsapp_to: str = os.environ.get("ESCALATION_WHATSAPP_TO", "14056557878")
+    # Rebuild every tenant's vector store on startup. On by default (the
+    # self-healing behavior production relies on); set false locally to reuse
+    # existing chroma_data instead of waiting out the reseed rate limits.
+    autoseed_on_startup: bool = os.environ.get("AUTOSEED_ON_STARTUP", "true").lower() != "false"
 
-    # Email (SMTP)
+    # Email (SMTP) — shared sender; each tenant's recipient address is in its
+    # own YAML config.
     smtp_host: str = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     smtp_port: int = int(os.environ.get("SMTP_PORT", "587"))
     smtp_user: str = os.environ.get("SMTP_USER", "")

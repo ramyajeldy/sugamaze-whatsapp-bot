@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sugamaze Bot Admin</title>
+<title>GroundedBot Admin</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
@@ -88,14 +88,20 @@
   #login-screen { max-width: 340px; margin: 80px auto 0; }
   #login-screen input { margin-bottom: 10px; }
   #app { display: none; }
+  .tenant-bar {
+    display: flex; gap: 10px; align-items: center;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 20px; margin-bottom: 20px;
+  }
+  .tenant-bar label { margin: 0; }
 </style>
 </head>
 <body>
 
 <div id="login-screen">
   <div class="card">
-    <h2>🎂 Sugamaze Admin</h2>
-    <div class="hint">Sign in to manage the bot</div>
+    <h2>GroundedBot Admin</h2>
+    <div class="hint">Sign in to manage your bots</div>
     <label>Username</label>
     <input id="login-user" autocomplete="username">
     <label>Password</label>
@@ -106,8 +112,13 @@
 </div>
 
 <div id="app" class="wrap">
-  <h1>🎂 Sugamaze Bot Admin</h1>
-  <div class="sub">Update store details, canned messages, and knowledge content — changes take effect immediately, no redeploy needed.</div>
+  <h1>GroundedBot Admin</h1>
+  <div class="sub">Update business details, canned messages, and knowledge content — changes take effect immediately, no redeploy needed.</div>
+
+  <div class="tenant-bar">
+    <label for="tenant-select">Business</label>
+    <select id="tenant-select" onchange="switchTenant()"></select>
+  </div>
 
   <div class="card">
     <h2>Usage &amp; Estimated Cost — This Month</h2>
@@ -116,33 +127,9 @@
   </div>
 
   <div class="card">
-    <h2>Store Messages</h2>
-    <div class="hint">These are sent automatically for common questions (hours, location, orders, allergies) and when a conversation ends.</div>
-
-    <label>Store hours</label>
-    <textarea id="hours_text"></textarea>
-
-    <label>Store location</label>
-    <textarea id="location_text"></textarea>
-
-    <label>Full menu (sent whenever a customer asks about the menu)</label>
-    <textarea id="menu_text" class="tall"></textarea>
-
-    <label>Flavours (sent whenever a customer asks about flavours)</label>
-    <textarea id="flavours_text"></textarea>
-
-    <label>Order / custom order message</label>
-    <textarea id="order_text"></textarea>
-
-    <label>Allergy / dietary escalation message</label>
-    <textarea id="allergy_text"></textarea>
-
-    <label>Closing line (sent when a chat ends)</label>
-    <textarea id="closing_line"></textarea>
-
-    <label>"Talk to our team" message</label>
-    <textarea id="team_escalation_line"></textarea>
-
+    <h2>Automatic Messages</h2>
+    <div class="hint">These are sent automatically for common questions and when a conversation ends. Which messages exist depends on the business.</div>
+    <div id="messages-fields"></div>
     <div class="row">
       <button onclick="saveMessages()">Save messages</button>
       <span id="messages-status" class="status"></span>
@@ -151,7 +138,7 @@
 
   <div class="card">
     <h2>Knowledge Base</h2>
-    <div class="hint">This is what the bot uses to answer everything else (policies, cake care, sizes, delivery, etc. — NOT menu or flavours, those are the fixed messages above). Editing here updates the live bot immediately.</div>
+    <div class="hint">This is what the bot uses to answer everything else. Editing here updates the live bot immediately.</div>
 
     <label>File</label>
     <select id="knowledge-select" onchange="loadKnowledge()"></select>
@@ -168,32 +155,59 @@
 
 <script>
 let creds = null;
+let tenantId = null;
+let messageKeys = [];
 
 function authHeader() {
   return { "Authorization": "Basic " + btoa(creds.user + ":" + creds.pass) };
 }
 
+function api(path) {
+  return "/admin/api/" + encodeURIComponent(tenantId) + path;
+}
+
 async function login() {
   const user = document.getElementById("login-user").value;
   const pass = document.getElementById("login-pass").value;
-  const resp = await fetch("/admin/api/messages", {
+  const resp = await fetch("/admin/api/tenants", {
     headers: { "Authorization": "Basic " + btoa(user + ":" + pass) }
   });
-  if (resp.status === 200) {
-    creds = { user, pass };
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    const data = await resp.json();
-    fillMessages(data);
-    loadKnowledgeList();
-    loadUsage();
-  } else {
+  if (resp.status !== 200) {
     document.getElementById("login-status").textContent = "Invalid username or password.";
+    return;
+  }
+  creds = { user, pass };
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  const data = await resp.json();
+  const select = document.getElementById("tenant-select");
+  select.innerHTML = "";
+  for (const t of data.tenants) {
+    const opt = document.createElement("option");
+    opt.value = t.tenant_id;
+    opt.textContent = t.business_name + " (" + t.vertical + ")";
+    select.appendChild(opt);
+  }
+  if (data.tenants.length) {
+    tenantId = data.tenants[0].tenant_id;
+    await switchTenant();
   }
 }
 
+async function switchTenant() {
+  tenantId = document.getElementById("tenant-select").value || tenantId;
+  clearStatuses();
+  await Promise.all([loadMessages(), loadKnowledgeList(), loadUsage()]);
+}
+
+function clearStatuses() {
+  document.getElementById("messages-status").textContent = "";
+  document.getElementById("knowledge-status").textContent = "";
+}
+
 async function loadUsage() {
-  const resp = await fetch("/admin/api/usage", { headers: authHeader() });
+  const resp = await fetch(api("/usage"), { headers: authHeader() });
   const u = await resp.json();
   const tiles = [
     ["AI questions answered", u.claude_calls],
@@ -207,25 +221,46 @@ async function loadUsage() {
   ).join("");
 }
 
-function fillMessages(data) {
-  for (const key of ["hours_text","location_text","menu_text","flavours_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
-    document.getElementById(key).value = data[key] || "";
+function humanize(key) {
+  return key.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
+async function loadMessages() {
+  const resp = await fetch(api("/messages"), { headers: authHeader() });
+  const data = await resp.json();
+  messageKeys = data.order;
+  const container = document.getElementById("messages-fields");
+  container.innerHTML = messageKeys.map(key => {
+    const label = data.labels[key] || humanize(key);
+    const isLong = (data.messages[key] || "").length > 400;
+    return `<label for="msg-${escapeHtml(key)}">${escapeHtml(label)}</label>` +
+      `<textarea id="msg-${escapeHtml(key)}" class="${isLong ? "tall" : ""}"></textarea>`;
+  }).join("");
+  // Set values via .value (not HTML) so message text is never parsed as markup.
+  for (const key of messageKeys) {
+    document.getElementById("msg-" + key).value = data.messages[key] || "";
   }
 }
 
 async function saveMessages() {
-  const body = {};
-  for (const key of ["hours_text","location_text","menu_text","flavours_text","order_text","allergy_text","closing_line","team_escalation_line"]) {
-    body[key] = document.getElementById(key).value;
+  const messages = {};
+  for (const key of messageKeys) {
+    messages[key] = document.getElementById("msg-" + key).value;
   }
   const status = document.getElementById("messages-status");
   status.textContent = "Saving...";
   status.className = "status";
   try {
-    const resp = await fetch("/admin/api/messages", {
+    const resp = await fetch(api("/messages"), {
       method: "PUT",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ messages })
     });
     if (!resp.ok) throw new Error(await resp.text());
     status.textContent = "Saved ✓";
@@ -237,7 +272,7 @@ async function saveMessages() {
 }
 
 async function loadKnowledgeList() {
-  const resp = await fetch("/admin/api/knowledge", { headers: authHeader() });
+  const resp = await fetch(api("/knowledge"), { headers: authHeader() });
   const data = await resp.json();
   const select = document.getElementById("knowledge-select");
   select.innerHTML = "";
@@ -247,13 +282,14 @@ async function loadKnowledgeList() {
     opt.textContent = f;
     select.appendChild(opt);
   }
-  if (data.files.length) loadKnowledge();
+  document.getElementById("knowledge-text").value = "";
+  if (data.files.length) await loadKnowledge();
 }
 
 async function loadKnowledge() {
   const filename = document.getElementById("knowledge-select").value;
   if (!filename) return;
-  const resp = await fetch("/admin/api/knowledge/" + encodeURIComponent(filename), { headers: authHeader() });
+  const resp = await fetch(api("/knowledge/" + encodeURIComponent(filename)), { headers: authHeader() });
   const data = await resp.json();
   document.getElementById("knowledge-text").value = data.text || "";
   document.getElementById("knowledge-status").textContent = "";
@@ -266,7 +302,7 @@ async function saveKnowledge() {
   status.textContent = "Saving and re-ingesting...";
   status.className = "status";
   try {
-    const resp = await fetch("/admin/api/knowledge/" + encodeURIComponent(filename), {
+    const resp = await fetch(api("/knowledge/" + encodeURIComponent(filename)), {
       method: "PUT",
       headers: { ...authHeader(), "Content-Type": "application/json" },
       body: JSON.stringify({ text })

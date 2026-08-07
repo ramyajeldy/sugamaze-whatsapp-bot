@@ -33,7 +33,7 @@ TENANT = sys.argv[2] if len(sys.argv) > 2 else "sugamaze"
 _settings = get_settings()
 _client = Anthropic(api_key=_settings.anthropic_api_key)
 
-JUDGE_SYSTEM = """You are grading a customer-service chatbot's answer for a cake bakery.
+JUDGE_SYSTEM = """You are grading a customer-service chatbot's answer for a local business.
 
 You will see:
 - The customer's question
@@ -94,8 +94,15 @@ def _call_chat_with_retry(question, max_retries=4):
     return "[EVAL ERROR: request failed after retries — excluded from grading]"
 
 
+def _test_cases_path() -> pathlib.Path:
+    per_tenant = pathlib.Path(__file__).parent / f"test_cases_{TENANT}.json"
+    if per_tenant.exists():
+        return per_tenant
+    return pathlib.Path(__file__).parent / "test_cases.json"
+
+
 def main():
-    test_cases = json.loads((pathlib.Path(__file__).parent / "test_cases.json").read_text())
+    test_cases = json.loads(_test_cases_path().read_text(encoding="utf-8"))
     results = []
 
     print(f"Running {len(test_cases)} test cases against {API_URL} (tenant={TENANT})\n")

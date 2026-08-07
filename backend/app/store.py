@@ -39,7 +39,7 @@ def add_chunks(tenant_id, ids, documents, metadatas):
 
 def query(tenant_id, text, top_k):
     col = _collection(tenant_id)
-    usage.record_voyage_call()  # one embedding call per customer question
+    usage.record_voyage_call(tenant_id)  # one embedding call per customer question
     res = col.query(
         query_texts=[text],
         n_results=top_k,

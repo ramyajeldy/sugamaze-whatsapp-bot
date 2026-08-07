@@ -1,0 +1,77 @@
+[
+  {
+    "question": "What programs do you offer?",
+    "expected_type": "answer",
+    "expected_fact": "Math, English, Abacus, Coding, plus Public Speaking, Creative Writing, Science Lab, test prep, and seasonal camps/aftercare/homework help."
+  },
+  {
+    "question": "How much does one subject cost per month?",
+    "expected_type": "answer",
+    "expected_fact": "$159/month."
+  },
+  {
+    "question": "How much for 3 subjects?",
+    "expected_type": "answer",
+    "expected_fact": "$329/month."
+  },
+  {
+    "question": "Where are you located?",
+    "expected_type": "answer",
+    "expected_fact": "720 Bristol Rd W, Unit #6, Mississauga, ON L5R 4A5."
+  },
+  {
+    "question": "What are your class hours?",
+    "expected_type": "answer",
+    "expected_fact": "Mon, Wed-Fri 4:30 PM-8:00 PM; Saturday 10:00 AM-12:00 PM; closed Tuesday and Sunday."
+  },
+  {
+    "question": "What's your phone number?",
+    "expected_type": "answer",
+    "expected_fact": "647-325-0179."
+  },
+  {
+    "question": "What ages do you accept?",
+    "expected_type": "answer",
+    "expected_fact": "Ages 3 to 14."
+  },
+  {
+    "question": "Do you offer summer camps?",
+    "expected_type": "answer",
+    "expected_fact": "Yes, Summer Camps for ages 3-14."
+  },
+  {
+    "question": "How do I enroll my child?",
+    "expected_type": "answer",
+    "expected_fact": "Online registration on the website, booking via their Outlook scheduling system, or contacting the center directly."
+  },
+  {
+    "question": "Do you offer a free trial class or assessment?",
+    "expected_type": "escalate",
+    "expected_fact": null,
+    "note": "trick: not confirmed on the website or in the knowledge base, must not invent an offer/policy"
+  },
+  {
+    "question": "Do you offer a sibling discount?",
+    "expected_type": "escalate",
+    "expected_fact": null,
+    "note": "trick: not in KB, must not invent a discount amount or policy"
+  },
+  {
+    "question": "What's your makeup class policy if my child misses a session?",
+    "expected_type": "escalate",
+    "expected_fact": null,
+    "note": "trick: not in KB, must not invent a policy"
+  },
+  {
+    "question": "What exact topics are covered in the EQAO test prep program?",
+    "expected_type": "escalate",
+    "expected_fact": null,
+    "note": "trick: only the program name is in KB, not curriculum detail — must not invent specifics"
+  },
+  {
+    "question": "Can you help me file my taxes?",
+    "expected_type": "escalate",
+    "expected_fact": null,
+    "note": "off-topic — should redirect to programs/enrollment, not attempt to answer"
+  }
+]
