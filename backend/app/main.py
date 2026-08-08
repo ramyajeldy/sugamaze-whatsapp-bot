@@ -164,23 +164,6 @@ def get_stats(tenant_id: str):
     return store.stats(tenant_id)
 
 
-@app.get("/debug/message/{tenant_id}/{key}")
-def debug_message(tenant_id: str, key: str):
-    # TEMP diagnostic for the multi-tenant cutover — remove once the WhatsApp
-    # test-number verification is done. No secrets, just canned message text.
-    try:
-        text = admin_settings.get_message(tenant_id, key)
-    except KeyError as e:
-        raise HTTPException(404, str(e))
-    return {
-        "tenant_id": tenant_id,
-        "key": key,
-        "length": len(text),
-        "text": text,
-        "repr": repr(text),
-    }
-
-
 @app.get("/debug/config")
 def debug_config():
     # Temporary diagnostic endpoint — no secrets exposed, just presence/value

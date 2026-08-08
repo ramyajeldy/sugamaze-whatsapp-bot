@@ -5,10 +5,7 @@
 tenant_id: sugamaze
 business_name: Sugamaze
 vertical: bakery
-# TEMP for live WhatsApp testing (Meta free test number, +1 555 145-7777) —
-# revert to "1181092221751477" (real Sugamaze production number) before
-# this goes anywhere near a real deploy or is committed.
-whatsapp_phone_number_id: "1273625699157218"
+whatsapp_phone_number_id: "1181092221751477"
 
 escalation_email: info@sugamaze.ca
 escalation_whatsapp_to: "16474829662"
